@@ -1,0 +1,6 @@
+src/Assets/PortfolioPics/*.jpg filter=lfs diff=lfs merge=lfs -text
+src/Assets/PortfolioPics/*.jpeg filter=lfs diff=lfs merge=lfs -text
+src/Assets/PortfolioPics/*.png filter=lfs diff=lfs merge=lfs -text
+src/Assets/*.jpg filter=lfs diff=lfs merge=lfs -text
+src/Assets/*.png filter=lfs diff=lfs merge=lfs -text
+src/Assets/*.jpeg filter=lfs diff=lfs merge=lfs -text
