@@ -9,7 +9,7 @@ function Portfolio(){
                     </div>
                 </div>
                
-            </section>
+        </section>
         
 
     )

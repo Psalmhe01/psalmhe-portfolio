@@ -7,7 +7,7 @@ import herop4 from '../Assets/PortfolioPics/herop4.jpg'
 function Welcome(){
 
     return (
-        <section class="hero" id='welcome'>
+        <div class="hero" id='welcome'>
                 <div class="hero-content">
                     <h2>Welcome to Psalmhe Photography</h2>
                     <p>Some artists hold paintbrushes, others hold lenses...</p>
@@ -19,7 +19,7 @@ function Welcome(){
                         <img src={herop4} />
                     </div>
                 </div>
-        </section>
+        </div>
     )
 }
 
