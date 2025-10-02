@@ -21,7 +21,9 @@ function About(){
                         </div>
                         <a className='btn' href='#contact'>Learn More</a>
                     </div>
-                    <img src= {AboutIMG} className='about-img'></img>
+                    <div  className='about-img'>
+                        <img src= {AboutIMG}></img>
+                    </div>
                 </div>
         </section>
     )

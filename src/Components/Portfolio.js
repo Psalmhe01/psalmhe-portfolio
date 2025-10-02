@@ -1,3 +1,6 @@
+import Slider from "./Slider";
+import Images from "../Files/SliderImages";
+
 function Portfolio(){
 
     return(
@@ -7,8 +10,8 @@ function Portfolio(){
                         <h2 >My Portfolio</h2>
                         <p>A display of my greatest works</p>
                     </div>
+                    
                 </div>
-               
         </section>
         
 

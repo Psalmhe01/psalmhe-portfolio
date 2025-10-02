@@ -3,6 +3,7 @@
             max-width: 1200px;
             margin: 0 auto;
         }
+
         
 
 .hero {
@@ -18,7 +19,8 @@
         }
         
         .hero-content {
-            padding: 2rem;
+            max-width: auto;
+            padding-top: 3rem;
         }
         
         .hero h2 {
@@ -54,7 +56,7 @@
         }
 
         .hero-images {
-            display: flex;
+            display: block;
             flex-direction: row;
             
         }
@@ -63,8 +65,8 @@
         .about {
             padding: 1rem 0;
             background-color: white;
-            
             align-content: center;
+        
             
         }
 
@@ -72,8 +74,16 @@
             
             max-width: 1200px;
             margin: 0 auto;
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
             justify-content: space-between;
+            align-items: center;
+            
+        }
+
+        .about-container ::view-transition{
+            align-items: center;
         }
 
         
@@ -87,38 +97,44 @@
         .section-title h2 {
             font-size: 2.5rem;
             color: var(--dark3);
-        
         }
         
         .section-title p {
             color: #666;
             max-width: 600px;
             margin: 0 auto;
-            padding: 2rem 2rem;
-             width: 500px;
-            text-align: justify;
+            
+            width: auto;
+            text-align: left;
         }
 
         .section-title h6{
             font-size: 1.5rem;
+            
         }
 
 
         .name-about{
-            display: flex;
+            display: inline-block;
             flex-direction: row;
             align-items: center;
             text-align: left;
-            justify-content: space-between;
+            justify-content: center;
             margin-bottom: 3rem;
-            padding: 5rem;
-            padding-left: 0;    
+            padding: 5rem;    
         }
 
         .about-img {
-            height: 720px;
-            width: 500px;
+                padding: 2rem 2rem;
+                align-items: center;
         }
+
+        .about-img img{
+            height: 90%;
+            width: 90%;
+            padding-left: 2rem;
+        }
+        
         
         /* Sermons Section */
         .sermons {
@@ -126,49 +142,8 @@
             background-color: #f1f5f9;
         }
         
-        .sermon-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
         
-        .sermon-card {
-            background-color: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        .sermon-img {
-            height: 200px;
-            overflow: hidden;
-        }
-        
-        .sermon-img img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s;
-        }
-        
-        .sermon-card:hover .sermon-img img {
-            transform: scale(1.05);
-        }
-        
-        .sermon-content {
-            padding: 1.5rem;
-        }
-        
-        .sermon-content h3 {
-            font-size: 1.3rem;
-            margin-bottom: 0.5rem;
-            color: var(--primary);
-        }
-        
-        .sermon-content p {
-            color: #666;
-            margin-bottom: 1rem;
-        }
+    
         
         
         /* Contact Section */
@@ -180,11 +155,14 @@
         }
         
         .contact-container {
-            display: flex;
+            /*display: block;*/
             flex-direction: row;
             align-items: center;
             justify-items: center;
             justify-content: space-between;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
         }
 
         .contact-box{
@@ -219,8 +197,9 @@
         }
         
         .map iframe {
-            width: 400px;
-            height: 300px;
+            width: 90%;
+            height: 90%;
+            object-fit: cover;
             border-radius: 5px;
             border: none;
         }
