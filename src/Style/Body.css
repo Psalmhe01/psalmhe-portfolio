@@ -37,7 +37,20 @@
             padding: 1.5rem;
             width: 380px;
             height: 620px;
+            
         }
+
+        @keyframes unblur {
+        from {
+            filter: blur(10px);
+            opacity: 0.8;
+        }
+        to {
+            filter: blur(0);
+            opacity: 1;
+        }
+        }
+
         
         .btn {
             display: inline-block;
@@ -58,7 +71,9 @@
         .hero-images {
             display: block;
             flex-direction: row;
-            
+            filter: blur(10px);             
+            opacity: 0.8;                  
+            animation: unblur 1s ease-out forwards;
         }
         
         /* About the Artist */
@@ -86,23 +101,25 @@
             align-items: center;
         }
 
-        
+        /*portfolio section*/
         .section-title {
-            text-align: center;
-            align-content: center;
-            justify-content:space-evenly;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-items: center;
             
         }
         
         .section-title h2 {
-            font-size: 2.5rem;
+            font-size: 3.5rem;
             color: var(--dark3);
         }
         
         .section-title p {
-            color: #666;
+            color: var(--dark2);
             max-width: 600px;
-            margin: 0 auto;
+            text-align: center;
+            font-size: large;
             
             width: auto;
             text-align: left;
@@ -127,6 +144,9 @@
         .about-img {
                 padding: 2rem 2rem;
                 align-items: center;
+                filter: blur(10px);             
+                opacity: 0.8;                  
+                animation: unblur 1s ease-out forwards;
         }
 
         .about-img img{
@@ -136,8 +156,8 @@
         }
         
         
-        /* Sermons Section */
-        .sermons {
+        
+        .gallery {
             padding: 5rem 0;
             background-color: #f1f5f9;
         }
@@ -155,7 +175,6 @@
         }
         
         .contact-container {
-            /*display: block;*/
             flex-direction: row;
             align-items: center;
             justify-items: center;
@@ -232,3 +251,6 @@
             width: 300px;
             text-indent: 5px;
         }
+
+
+        

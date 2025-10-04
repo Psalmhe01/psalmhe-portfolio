@@ -20,8 +20,8 @@
   width: 480px;   /* matches scroll step */
   margin: 10px;
   text-align: center;
-  background: #f2f2f2;
   padding: 10px;
+  font-size: x-large;
 }
 
 .slider-item img {
@@ -36,6 +36,15 @@
   cursor: pointer;
 }
 
+.slider-box{
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.slider-box button{
+   width: 200px;
+}
 
 .slider-btn {
     position: absolute;
