@@ -34,10 +34,6 @@
             color: var(--dark3);
         }
         
-        .logo i {
-            font-size: 2rem;
-            color: var(--secondary);
-        }
         
         nav ul {
             display: flex;

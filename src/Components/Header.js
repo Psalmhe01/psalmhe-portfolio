@@ -11,8 +11,7 @@ function Header({activePage, setActivePage}) {
         <div class="header">
             <div className="container header-container">
                 <div className="logo">
-                    <img src= {psalmhe} className="fas fa-church">
-                    </img>
+                    <img src= {psalmhe} className="fas fa-church" />
                     <h1>PHOTOGRAPHY</h1>
                 </div>
                 
