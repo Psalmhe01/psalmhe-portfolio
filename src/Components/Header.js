@@ -2,7 +2,6 @@ import '../Style/Header.css'
 import '../App.css'
 import { useState } from 'react'
 import psalmhe from '../Assets/psalmhe.png'
-import PortfolioPage from './PortfolioPage/PortfolioPage';
 
 function Header({activePage, setActivePage}) {
     const [active, setActive] = useState(false);
@@ -11,7 +10,7 @@ function Header({activePage, setActivePage}) {
         <div class="header">
             <div className="container header-container">
                 <div className="logo">
-                    <img src= {psalmhe} className="fas fa-church" />
+                    <img src= {psalmhe} />
                     <h1>PHOTOGRAPHY</h1>
                 </div>
                 
