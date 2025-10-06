@@ -1,14 +1,15 @@
 .page-container {
   display: flex;
   flex-direction: column;
+  margin-top: 80px;
 }
 
 .page-container > img {
   width: 90%;
   align-self: center;
-  height: 300px;
+  height: 320px;
   object-fit: cover;
-  object-position: (top - 4rem);
+  object-position: top;
   
 }
 .name-descript {
@@ -48,6 +49,12 @@
   margin: 0 0 1rem; /* vertical spacing between items */
   break-inside: avoid; /* avoid breaking images between columns */
   -webkit-column-break-inside: avoid;
+
+}
+
+.page-image-item:hover{
+    filter: brightness(80%);
+    cursor: pointer;
 }
 
 /* Lightbox styles */

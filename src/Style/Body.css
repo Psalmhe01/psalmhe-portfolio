@@ -228,15 +228,32 @@
             display: block;
         }
 
-        .forms a{
-            width: 100%;
+        .forms button{
+            width: 300px;
             margin-top: 10px;
             text-align: center;
+            display: inline-block;
+            background-color: var(--dark3);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            border: solid 2px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.3s;
+            cursor: pointer;
+        }
+
+        .forms button:hover {
+            background-color: var(--light3);
+            color: var(--dark3);
         }
 
         .form-title{
             padding-bottom: 10px;
-            padding-top: 10px
+            padding-top: 10px;
+            display:flex;
+            flex-direction: column;
         }
         .form-title p{
             color: var(--dark4);
@@ -250,6 +267,17 @@
             height: 40px;
             width: 300px;
             text-indent: 5px;
+        }
+
+        .form-title textarea{
+            text-decoration: var(--dark4);
+            background-color: #fafafa;
+            border-radius: 5px;
+            border: solid 2px #3d3d3d5f;
+            height: 80px;
+            width: 300px;
+            text-indent: 5px;
+            resize: none;
         }
 
 
