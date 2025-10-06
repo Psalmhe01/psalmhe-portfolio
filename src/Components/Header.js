@@ -17,7 +17,6 @@ function Header({activePage, setActivePage}) {
                 </div>
                 
                 <div class="nav-toggle" id="navToggle" onClick={() => setActive(!active)}>
-                    <i class="fas fa-bars"></i>
                 </div>
                 <nav>
                     <ul id="navMenu" className={active ? 'nav-toggle active': ''}>
