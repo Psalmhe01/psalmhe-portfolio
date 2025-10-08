@@ -16,7 +16,7 @@ function Footer(){
         <div className="footer">
             <div className="container footer-container">
                 <div className="footer-section">
-                    <img src={psalmhe} />
+                    <img src={psalmhe} alt="Psalmhe footer logo" id="footer logo"/>
                     <div class="contact-details">
                                 <p><i class="fas fa-map-marker-alt"></i>801 Pecan Street, Hammond LA 70402</p>
                                 <p><i class="fas fa-phone"></i> (203) 994-1895</p>

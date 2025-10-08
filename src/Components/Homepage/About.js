@@ -1,5 +1,8 @@
 import "../../Style/Body.css";
-import {AboutIMG} from "../../Files/HomeImage.js";
+import { AboutIMG } from "../../Files/HomeImage.js";
+
+// Debug: log resolved URL for About image
+console.log("About image resolved:", AboutIMG);
 
 function About() {
   return (
@@ -23,8 +26,21 @@ function About() {
           </a>
         </div>
         <div className="about-img">
-          <img src={AboutIMG}></img>
+          <img src={AboutIMG} alt="about img" id="about"></img>
         </div>
+        {/* Debug output: show resolved AboutIMG URL */}
+        <pre
+          id="debug-about-url"
+          style={{
+            whiteSpace: "pre-wrap",
+            background: "#ffffffcc",
+            color: "#000",
+            padding: "8px",
+            marginTop: "12px",
+          }}
+        >
+          {JSON.stringify({ AboutIMG }, null, 2)}
+        </pre>
       </div>
     </section>
   );
