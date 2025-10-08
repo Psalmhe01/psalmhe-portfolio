@@ -6,4 +6,8 @@ import herop4 from "../Assets/PortfolioPics/herop4.jpg";
 import coverPic from "../Assets/cover-pic.jpg";
 import psalmhe from "../Assets/psalmhe.png";
 
-export { AboutIMG, herop1, herop2, herop3, herop4, coverPic, psalmhe };
+const heroPics = [herop1, herop2, herop3, herop4]
+
+const logoAbt = [psalmhe, AboutIMG]
+
+export { heroPics, logoAbt };
