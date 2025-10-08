@@ -14,16 +14,16 @@ function Footer() {
       <div className="container footer-container">
         <div className="footer-section">
           <img src={psalmhe} alt="Psalmhe footer logo" id="footer logo" />
-          <div class="contact-details">
+          <div className="contact-details">
             <p>
-              <i class="fas fa-map-marker-alt"></i>801 Pecan Street, Hammond LA
-              70402
+              <i className="fas fa-map-marker-alt"></i>801 Pecan Street, Hammond
+              LA 70402
             </p>
             <p>
-              <i class="fas fa-phone"></i> (203) 994-1895
+              <i className="fas fa-phone"></i> (203) 994-1895
             </p>
             <p>
-              <i class="fas fa-envelope"></i> psalmhe@gmail.com
+              <i className="fas fa-envelope"></i> psalmhe@gmail.com
             </p>
           </div>
         </div>

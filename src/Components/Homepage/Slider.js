@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import "../../Style/Slider.css";
 
-
 function Slider({ items, setActivePage }) {
   const sliderRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -43,41 +42,43 @@ function Slider({ items, setActivePage }) {
     };
   }, []);
 
-    return (
-        <div className="slider-box">
-            <div className="slider-container">
-                {canScrollLeft && (
-                <button className="slider-btn left" onClick={handleScrollLeft}>
-                    <i class="fa-solid fa-angle-left"></i>
-                </button>
-                )}
+  return (
+    <div className="slider-box">
+      <div className="slider-container">
+        {canScrollLeft && (
+          <button className="slider-btn left" onClick={handleScrollLeft}>
+            <i className="fa-solid fa-angle-left"></i>
+          </button>
+        )}
 
-                <div className="slider" ref={sliderRef}>
-                {items.map((item, i) => (
-                    <div className="slider-item" key={i}>
-                    <img src={item.image} alt={item.title} />
-                    <h3>{item.title}</h3>
-                    </div>
-                ))}
-                </div>
-
-                {canScrollRight && (
-                <button className="slider-btn right" onClick={handleScrollRight}>
-                    <i class="fa-solid fa-angle-right"></i>
-                </button>
-                )}
+        <div className="slider" ref={sliderRef}>
+          {items.map((item, i) => (
+            <div className="slider-item" key={i}>
+              <img src={item.image} alt={item.title} />
+              <h3>{item.title}</h3>
             </div>
-            
-        <button 
-            className="btn" 
-            onClick={() => setActivePage && (setActivePage("PortfolioPage"), 
-                            window.scrollTo({top: 0, behavior: "smooth"})
-                            )}
-        >
-            View More
-        </button>
+          ))}
         </div>
-    );
+
+        {canScrollRight && (
+          <button className="slider-btn right" onClick={handleScrollRight}>
+            <i className="fa-solid fa-angle-right"></i>
+          </button>
+        )}
+      </div>
+
+      <button
+        className="btn"
+        onClick={() =>
+          setActivePage &&
+          (setActivePage("PortfolioPage"),
+          window.scrollTo({ top: 0, behavior: "smooth" }))
+        }
+      >
+        View More
+      </button>
+    </div>
+  );
 }
 
 export default Slider;

@@ -1,5 +1,4 @@
-
-import '../Style/TopButton.css'
+import "../Style/TopButton.css";
 import { useEffect, useState } from "react";
 
 function BackToTopButton() {
@@ -28,8 +27,12 @@ function BackToTopButton() {
 
   return (
     isVisible && (
-      <button onClick={scrollToTop} className="jh-back-to-top" title='Back to Top'>
-        <i class="fa-solid fa-angle-up"></i>
+      <button
+        onClick={scrollToTop}
+        className="jh-back-to-top"
+        title="Back to Top"
+      >
+        <i className="fa-solid fa-angle-up"></i>
       </button>
     )
   );

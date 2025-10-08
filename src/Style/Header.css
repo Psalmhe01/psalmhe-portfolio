@@ -73,7 +73,7 @@
             nav ul {
                 position: fixed;
                 flex-direction: column;
-                background-color: var(--dark);
+                background-color: var(--light3);
                 width: 100%;
                 top: 80px;
                 left: 0;

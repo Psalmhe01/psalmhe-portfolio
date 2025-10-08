@@ -3,9 +3,9 @@ import { logoAbt } from "../../Files/HomeImage.js";
 
 function About() {
   return (
-    <section class="about" id="about">
-      <div class="about-container">
-        <div class="section-title">
+    <section className="about" id="about">
+      <div className="about-container">
+        <div className="section-title">
           <h2>About the Artist</h2>
           <div className="name-about">
             <h6>Samuel Omosowone</h6>

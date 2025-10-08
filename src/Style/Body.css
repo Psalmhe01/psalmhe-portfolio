@@ -111,6 +111,9 @@
         }
         
         .section-title h2 {
+            margin-left: 10px;
+            margin-right: 10px;
+            text-align: center;
             font-size: 3.5rem;
             color: var(--dark3);
         }
@@ -215,6 +218,10 @@
             color: var(--secondary);
         }
         
+        .map{
+            display: flex;
+            justify-content: center;
+        }
         .map iframe {
             width: 90%;
             height: 90%;
