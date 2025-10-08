@@ -1,8 +1,5 @@
 import "../../Style/Body.css";
-import herop1 from "../../Assets/PortfolioPics/herop1.jpg";
-import herop2 from "../../Assets/PortfolioPics/herop2.jpg";
-import herop3 from "../../Assets/PortfolioPics/herop3.jpg";
-import herop4 from "../../Assets/PortfolioPics/herop4.jpg";
+import { herop1, herop2, herop3, herop4 } from "../../Files/HomeImage.js";
 
 function Welcome({setActivePage}) {
     return (

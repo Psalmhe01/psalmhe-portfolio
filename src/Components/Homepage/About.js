@@ -1,5 +1,5 @@
 import "../../Style/Body.css";
-import AboutIMG from "../../Assets/PortfolioPics/AboutIMG.jpg";
+import {AboutIMG} from "../../Files/HomeImage.js";
 
 function About() {
   return (
