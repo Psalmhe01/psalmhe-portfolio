@@ -1,10 +1,10 @@
-import AboutIMG from "../Assets/PortfolioPics/AboutIMG.jpg";
-import herop1 from "../Assets/PortfolioPics/herop1.jpg";
-import herop2 from "../Assets/PortfolioPics/herop2.jpg";
-import herop3 from "../Assets/PortfolioPics/herop3.jpg";
-import herop4 from "../Assets/PortfolioPics/herop4.jpg";
+import AboutIMG from "../Assets/Others/AboutIMG.jpg";
+import herop1 from "../Assets/Others/herop1.jpg";
+import herop2 from "../Assets/Others/herop2.jpg";
+import herop3 from "../Assets/Others/herop3.jpg";
+import herop4 from "../Assets/Others/herop4.jpg";
 import coverPic from "../Assets/cover-pic.jpg";
-import psalmhe from "../Assets/psalmhe.png";
+import psalmhe from "../Assets/Others/psalmhe.png";
 
 const heroPics = [herop1, herop2, herop3, herop4]
 
