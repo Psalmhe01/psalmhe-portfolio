@@ -31,7 +31,10 @@ function Header({ activePage, setActivePage }) {
         <div className="header">
         <div className="container header-container">
             <div className="logo">
-            <img src={logoAbt[0]} alt="Psalmhe Logo" />
+            <img 
+                src={logoAbt[0]} alt="Psalmhe Logo"
+                onClick={() => (setActivePage("Body"), setActive(false))}
+            />
             <h1>PHOTOGRAPHY</h1>
             </div>
 

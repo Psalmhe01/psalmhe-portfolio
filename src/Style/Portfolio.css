@@ -27,9 +27,14 @@
             width: 375px;   /* matches scroll step */
             text-align: center;
             font-size: x-large;
+            transition: scale 0.3s;
         }
 
         .portfolio-grid img:hover {
             filter: brightness(70%);
             cursor: pointer;
+        }
+
+        .portfolio-item:hover {
+            scale: 105%;
         }

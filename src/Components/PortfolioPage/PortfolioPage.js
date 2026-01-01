@@ -71,13 +71,13 @@ function PortfolioPage() {
         </div>
         <div className="portfolio-grid">
             {Images.map((item, i) => (
-            <div className="portfolio-item" key={i}>
+            <div 
+            className="portfolio-item" key={i}
+            onClick={() => (openProject(item.title), window.scrollTo({top: 0, behavior: "smooth"}))}
+            style={{ cursor: "pointer" }}
+            >
                 <img src={item.image} alt={item.title} />
-                <h3
-                id={item.title}
-                onClick={() => (openProject(item.title), window.scrollTo({top: 0, behavior: "smooth"}))}
-                style={{ cursor: "pointer" }}
-                >
+                <h3 id={item.title}>
                 {item.title}
                 </h3>
             </div>

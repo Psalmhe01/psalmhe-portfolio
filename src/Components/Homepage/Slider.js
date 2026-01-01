@@ -53,9 +53,14 @@ function Slider({ items, setActivePage }) {
 
         <div className="slider" ref={sliderRef}>
           {items.map((item, i) => (
-            <div className="slider-item" key={i}>
-              <img src={item.image} alt={item.title} />
-              <h3>{item.title}</h3>
+            <div 
+              className="slider-item" key={i} 
+              onClick={() => (
+                setActivePage("PortfolioPage"), 
+                window.scrollTo({top: 0, behavior: "smooth"}))}
+            >
+                <img src={item.image} alt={item.title} />
+                <h3>{item.title}</h3>
             </div>
           ))}
         </div>
