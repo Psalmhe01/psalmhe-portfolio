@@ -61,9 +61,9 @@
                 </a>
                 </li>
                 <li>
-                <Link to="/portfolio" onClick={() => {setActive(false); window.scrollTo(top= 0, behavior=smooth)}}>
+                <a  onClick={() => {setActive(false); navigate("/portfolio"); window.scrollTo(top= 0, behavior=smooth)}}>
                     Gallery
-                </Link>
+                </a>
                 </li>
                 <li>
                     <a href="#contact"  onClick={() => {setActive(false); navigate("/")}}>
