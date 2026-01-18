@@ -1,8 +1,8 @@
 import "../../Style/Body.css";
-import ContactForm from "../ContactBox";
+import ContactForm from "../ContactBox.jsx";
 import React from "react";
 import { useForm, ValidationError } from "@formspree/react";
-import ContactBox from "../ContactBox";
+import ContactBox from "../ContactBox.jsx";
 
 function Contact() {
   const [state, handleSubmit] = useForm("xkgqzeey");

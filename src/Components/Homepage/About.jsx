@@ -1,5 +1,5 @@
 import "../../Style/Body.css";
-import { logoAbt } from "../../Files/HomeImage.js";
+import { logoAbt } from "../../Files/HomeImage.jsx";
 
 function About() {
   return (

@@ -1,28 +1,47 @@
 // Dynamically import all images from each portfolio folder.
 // This keeps the file maintainable when images are added/removed.
 
-function importAll(r) {
-  return r.keys().sort().map(r);
+function importAll(globResult) {
+  return Object.keys(globResult)
+    .sort()
+    .map((key) => globResult[key].default);
 }
 
-const am = importAll(
-  require.context("../Assets/PortfolioPics/AM", false, /\.(png|jpe?g|svg)$/)
+const amModules = import.meta.glob(
+  "../Assets/PortfolioPics/AM/*.{png,jpg,jpeg,svg}",
+  { eager: true },
 );
-const cm = importAll(
-  require.context("../Assets/PortfolioPics/CM", false, /\.(png|jpe?g|svg)$/)
+const am = importAll(amModules);
+
+const cmModules = import.meta.glob(
+  "../Assets/PortfolioPics/CM/*.{png,jpg,jpeg,svg}",
+  { eager: true },
 );
-const cp = importAll(
-  require.context("../Assets/PortfolioPics/CP", false, /\.(png|jpe?g|svg)$/)
+const cm = importAll(cmModules);
+
+const cpModules = import.meta.glob(
+  "../Assets/PortfolioPics/CP/*.{png,jpg,jpeg,svg}",
+  { eager: true },
 );
-const ep = importAll(
-  require.context("../Assets/PortfolioPics/EP", false, /\.(png|jpe?g|svg)$/)
+const cp = importAll(cpModules);
+
+const epModules = import.meta.glob(
+  "../Assets/PortfolioPics/EP/*.{png,jpg,jpeg,svg}",
+  { eager: true },
 );
-const eph = importAll(
-  require.context("../Assets/PortfolioPics/EPH", false, /\.(png|jpe?g|svg)$/)
+const ep = importAll(epModules);
+
+const ephModules = import.meta.glob(
+  "../Assets/PortfolioPics/EPH/*.{png,jpg,jpeg,svg}",
+  { eager: true },
 );
-const tm = importAll(
-  require.context("../Assets/PortfolioPics/TM", false, /\.(png|jpe?g|svg)$/)
+const eph = importAll(ephModules);
+
+const tmModules = import.meta.glob(
+  "../Assets/PortfolioPics/TM/*.{png,jpg,jpeg,svg}",
+  { eager: true },
 );
+const tm = importAll(tmModules);
 
 const category = [
   {
@@ -41,14 +60,14 @@ const category = [
 
   {
     image: cp,
-    title: "Cultural Potraits",
+    title: "Cultural Portraits",
     description:
       "Embark on a visual journey through diverse cultures with this collection of captivating portraits. From traditional attire to expressive moments, these images celebrate the beauty and diversity of human expression.",
   },
 
   {
     image: ep,
-    title: "Enigmatic Potraits",
+    title: "Enigmatic Portraits",
     description:
       "Step into the enigmatic world of captivating portraits with this collection. From confident poses to introspective gazes, these images capture the essence of mystery and allure.",
   },

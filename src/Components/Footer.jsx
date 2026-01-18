@@ -1,6 +1,6 @@
 import "../Style/Footer.css";
 import "../App.css";
-import BackToTopButton from "./TopButton";
+import BackToTopButton from "./TopButton.jsx";
 import psalmhe from "../Assets/Others/psalmhe.png";
 import React, { useState } from "react";
 import { useForm, ValidationError } from "@formspree/react";

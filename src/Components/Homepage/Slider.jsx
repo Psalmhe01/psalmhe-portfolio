@@ -1,10 +1,12 @@
 import React, { useRef, useState, useEffect } from "react";
 import "../../Style/Slider.css";
+import { useNavigate } from "react-router-dom";
 
-function Slider({ items, setActivePage }) {
+function Slider({ items }) {
   const sliderRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const navigate = useNavigate();
 
   const checkScroll = () => {
     if (sliderRef.current) {
@@ -53,14 +55,16 @@ function Slider({ items, setActivePage }) {
 
         <div className="slider" ref={sliderRef}>
           {items.map((item, i) => (
-            <div 
-              className="slider-item" key={i} 
-              onClick={() => (
-                setActivePage("PortfolioPage"), 
-                window.scrollTo({top: 0, behavior: "smooth"}))}
+            <div
+              className="slider-item"
+              key={i}
+              onClick={() => {
+                navigate("/portfolio");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
             >
-                <img src={item.image} alt={item.title} />
-                <h3>{item.title}</h3>
+              <img src={item.image} alt={item.title} />
+              <h3>{item.title}</h3>
             </div>
           ))}
         </div>
@@ -74,11 +78,10 @@ function Slider({ items, setActivePage }) {
 
       <button
         className="btn"
-        onClick={() =>
-          setActivePage &&
-          (setActivePage("PortfolioPage"),
-          window.scrollTo({ top: 0, behavior: "smooth" }))
-        }
+        onClick={() => {
+          navigate("/portfolio");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
       >
         View More
       </button>

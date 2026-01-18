@@ -1,15 +1,16 @@
 import "../../Style/Body.css";
-import { heroPics } from "../../Files/HomeImage.js";
+import { heroPics } from "../../Files/HomeImage.jsx";
+import { Link } from "react-router-dom";
 
-function Welcome({ setActivePage }) {
+function Welcome() {
   return (
     <section className="hero" id="welcome">
       <div className="hero-content">
         <h2>Welcome to Psalmhe Photography</h2>
         <p>Some artists hold paintbrushes, others hold lenses...</p>
-        <a onClick={() => setActivePage("PorfolioPage")} className="btn">
+        <Link to="/portfolio" className="btn">
           View Gallery
-        </a>
+        </Link>
         <div className="hero-images">
           <img src={heroPics[0]} alt="hero-1" id="hero1" />
           <img src={heroPics[1]} alt="hero-2" id="hero2" />

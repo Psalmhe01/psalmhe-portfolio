@@ -137,10 +137,10 @@
     margin: 2rem;
     justify-content: space-between;
     display: flex;
-    flex-direction: row;
+    flex-direction: row
 }
 
-.page-ref button{
+.page-ref-btn{
     display: flex;
     align-items: center;
     gap: 10px;
@@ -148,4 +148,9 @@
     background-color: transparent;
     border: solid 0.6px var(--dark3);
     cursor: pointer;
+    text-decoration: none;
+}
+
+.page-ref-Link{
+  text-decoration: none;
 }

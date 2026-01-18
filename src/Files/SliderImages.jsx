@@ -18,12 +18,12 @@ const Images = [
 
   {
     image: CP1,
-    title: "Cultural Potraits",
+    title: "Cultural Portraits",
   },
 
   {
     image: EP1,
-    title: "Enigmatic potraits",
+    title: "Enigmatic Portraits",
   },
 
   {
@@ -37,6 +37,4 @@ const Images = [
   },
 ];
 
-
 export default Images;
-

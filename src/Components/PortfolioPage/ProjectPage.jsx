@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
-import category from "../../Files/PortImages";
+import categories from "../../Files/PortImages.jsx";
 import "../../Style/ProjectPage.css";
+import { useParams, useNavigate, Link } from "react-router-dom";
 
-function ProjectPage({ cat }) {
-  const name = cat;
+function ProjectPage() {
+  const { category } = useParams();
+  const navigate = useNavigate();
+  const name = category;
 
-  const found = category.find((item) => {
-    if (!item || !item.title || !cat) return false;
-    return item.title.toLowerCase() === String(cat).toLowerCase();
+  const found = categories.find((item) => {
+    if (!item || !item.title || !category) return false;
+    return item.title.toLowerCase() === String(category).toLowerCase();
   });
 
   const descript = found ? found.description : "";
@@ -50,6 +53,17 @@ function ProjectPage({ cat }) {
     setCurrentIndex((idx) => (idx === found.image.length - 1 ? 0 : idx + 1));
   };
 
+  const goToPrevProject = () => {
+    const prevIndex =
+      (currentIndex - 1 + categories.length) % categories.length;
+    navigate(`/portfolio/${categories[prevIndex].title}`);
+  };
+
+  const goToNextProject = () => {
+    const nextIndex = (currentIndex + 1) % categories.length;
+    navigate(`/portfolio/${categories[nextIndex].title}`);
+  };
+
   // keyboard navigation and focus management when lightbox open
   useEffect(() => {
     if (currentIndex === null) return;
@@ -69,6 +83,12 @@ function ProjectPage({ cat }) {
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, found]);
+
+  if (!found) {
+    return (
+      <div className="page-container">Category "{category}" not found</div>
+    );
+  }
 
   return (
     <div className="page-container">
@@ -91,6 +111,39 @@ function ProjectPage({ cat }) {
             />
           </div>
         ))}
+      </div>
+
+      <div className="page-ref">
+        <button
+          onClick={() => {
+            goToPrevProject();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className="page-ref-btn"
+        >
+          <i className="fa-solid fa-angle-left" />
+          Previous Project
+        </button>
+        
+          <button 
+            className="page-ref-btn"
+            onClick={() => {
+            navigate("/portfolio");
+            window.scrollTo({ top: 0, behavior: "smooth" });}}
+          >
+            Back to Portfolio
+          </button>
+       
+        <button
+          onClick={() => {
+            goToNextProject();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className="page-ref-btn"
+        >
+          Next Project
+          <i className="fa-solid fa-angle-right" />
+        </button>
       </div>
 
       {/* Lightbox modal */}

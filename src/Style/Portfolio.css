@@ -1,7 +1,7 @@
 .portfolio{
             width: 90%;
             margin: 0 auto;
-            margin-top: 80px;
+            margin-top: 100px;
         }
 
         .portfolio-grid{
@@ -28,6 +28,7 @@
             text-align: center;
             font-size: x-large;
             transition: scale 0.3s;
+            text-decoration: none;
         }
 
         .portfolio-grid img:hover {
@@ -37,4 +38,14 @@
 
         .portfolio-item:hover {
             scale: 105%;
+        }
+
+        .portfolio-item h3{
+            text-decoration: none;
+            color: var(--dark4);
+        }
+
+        .portfolio-item h6{
+            color:var(--dark2);
+            font-size: xx-small;
         }
