@@ -1,91 +1,121 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "../../Style/Slider.css";
 import { useNavigate } from "react-router-dom";
+import {
+  Box,
+  Title,
+  Button,
+  UnstyledButton,
+  Paper,
+  Text,
+  Image,
+} from "@mantine/core";
+import { Carousel } from "@mantine/carousel";
+import { IconCaretLeft, IconCaretRight } from "@tabler/icons-react";
+import WheelGestures from "embla-carousel-wheel-gestures";
+import { width } from "@fortawesome/free-solid-svg-icons/fa0";
 
 function Slider({ items }) {
-  const sliderRef = useRef(null);
+  const [embla, setEmbla] = useState(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
   const navigate = useNavigate();
 
-  const checkScroll = () => {
-    if (sliderRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
-      setCanScrollLeft(scrollLeft > 0); // hide left button if at start
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth); // hide right button if at end
-    }
-  };
-
-  const handleScrollLeft = () => {
-    if (sliderRef.current) {
-      sliderRef.current.scrollLeft -= 500;
-      checkScroll();
-    }
-  };
-
-  const handleScrollRight = () => {
-    if (sliderRef.current) {
-      sliderRef.current.scrollLeft += 500;
-      checkScroll();
-    }
-  };
-
-  // Attach scroll listener
-  useEffect(() => {
-    const slider = sliderRef.current;
-    if (slider) {
-      slider.addEventListener("scroll", checkScroll);
-      checkScroll(); // run once at start
-    }
-    return () => {
-      if (slider) {
-        slider.removeEventListener("scroll", checkScroll);
-      }
-    };
+  const onSelect = useCallback((emblaApi) => {
+    setCanScrollLeft(emblaApi.canScrollPrev());
+    setCanScrollRight(emblaApi.canScrollNext());
   }, []);
 
-  return (
-    <div className="slider-box">
-      <div className="slider-container">
-        {canScrollLeft && (
-          <button className="slider-btn left" onClick={handleScrollLeft}>
-            <i className="fa-solid fa-angle-left"></i>
-          </button>
-        )}
+  useEffect(() => {
+    if (embla) {
+      embla.on("select", onSelect);
+      onSelect(embla);
+    }
+  }, [embla, onSelect]);
 
-        <div className="slider" ref={sliderRef}>
+  return (
+    <Box className="slider-container">
+      <Box className="slider-box">
+        <Carousel
+          slideSize={{ base: "100%", sm: "50%", md: "33.33%" }}
+          slideGap="xl"
+          align="start"
+          slidesToScroll={1}
+          withControls
+          plugins={[WheelGestures()]}
+          withIndicators
+          previousControlIcon={<IconCaretLeft size={15} />}
+          nextControlIcon={<IconCaretRight size={15} />}
+          getEmblaApi={setEmbla}
+          classNames={{
+            container: "slider",
+            controls: "slider-btn",
+            indicator: "indicator",
+          }}
+          emblaOptions={{
+            loop: true,
+            dragFree: true,
+            align: "start",
+          }}
+        >
           {items.map((item, i) => (
-            <div
-              className="slider-item"
+            <Carousel.Slide
               key={i}
               onClick={() => {
                 navigate("/portfolio");
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             >
-              <img src={item.image} alt={item.title} />
-              <h3>{item.title}</h3>
-            </div>
+              <Paper
+                shadow="md"
+                radius="xs"
+                style={{
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  height: "100%",
+                }}
+              >
+                <Box style={{ position: "relative" }}>
+                  <Image
+                    src={item.image}
+                    height={500}
+                    fit="cover"
+                    alt={item.title}
+                    className="slider-item-img"
+                  />
+                  <Box
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      padding: "20px",
+                      background:
+                        "linear-gradient(transparent, rgba(0,0,0,0.8))",
+                      color: "white",
+                    }}
+                  >
+                    <Text fw={700} size="xl">
+                      {item.title}
+                    </Text>
+                  </Box>
+                </Box>
+              </Paper>
+            </Carousel.Slide>
           ))}
-        </div>
-
-        {canScrollRight && (
-          <button className="slider-btn right" onClick={handleScrollRight}>
-            <i className="fa-solid fa-angle-right"></i>
-          </button>
-        )}
-      </div>
-
-      <button
+        </Carousel>
+      </Box>
+      <Button
         className="btn"
         onClick={() => {
           navigate("/portfolio");
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
+        m="lg"
       >
         View More
-      </button>
-    </div>
+      </Button>
+    </Box>
   );
 }
 

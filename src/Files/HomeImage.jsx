@@ -5,9 +5,10 @@ import herop3 from "../Assets/Others/herop3.jpg";
 import herop4 from "../Assets/Others/herop4.jpg";
 import coverPic from "../Assets/cover-pic.jpg";
 import psalmhe from "../Assets/Others/psalmhe.png";
+import psalmhe2 from "../Assets/Others/psalmhe2.png";
 
 const heroPics = [herop1, herop2, herop3, herop4]
 
-const logoAbt = [psalmhe, AboutIMG]
+const logoAbt = [psalmhe, psalmhe2, AboutIMG]
 
 export { heroPics, logoAbt };

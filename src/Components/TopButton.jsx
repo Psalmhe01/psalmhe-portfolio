@@ -1,10 +1,10 @@
-import "../Style/TopButton.css";
 import { useEffect, useState } from "react";
+import { ActionIcon, Box } from "@mantine/core";
+import { IconArrowUp } from "@tabler/icons-react";
 
 function BackToTopButton() {
   const [isVisible, setIsVisible] = useState(false);
 
-  // Show button when page is scrolled down
   useEffect(() => {
     const toggleVisibility = () => {
       if (window.scrollY > 200) {
@@ -27,13 +27,24 @@ function BackToTopButton() {
 
   return (
     isVisible && (
-      <button
+      <Box
+        component="button"
         onClick={scrollToTop}
-        className="jh-back-to-top"
         title="Back to Top"
+        style={{
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          zIndex: 100,
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+        }}
       >
-        <i className="fa-solid fa-angle-up"></i>
-      </button>
+        <ActionIcon size="lg" radius="md" variant="filled">
+          <IconArrowUp size={16} />
+        </ActionIcon>
+      </Box>
     )
   );
 }

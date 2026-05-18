@@ -1,11 +1,32 @@
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  background-color: rgba(255, 255, 255, 0.7); /* Transparent background */
+  backdrop-filter: blur(10px); /* Blur effect */
+  -webkit-backdrop-filter: blur(10px);
+}
+
 .container {
   width: 90%;
   max-width: 1200px;
   margin: 0 auto;
 }
 
+/* Global reset to avoid default body margins causing page-side whitespace */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
 .hero {
-  background-color: var(--dark4);
+  position: relative;
+  overflow: hidden; /* Ensures the blurred edges don't spill outside the section */
   height: auto;
   display: flex;
   flex-direction: column;
@@ -13,7 +34,23 @@
   justify-content: center;
   text-align: center;
   color: white;
-  margin-top: 80px;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("../Assets/others/welcome.jpg");
+  background-size: cover;
+  background-position: center;
+  filter: blur(6px) brightness(40%); /* Adjust 8px for blur and 40% for dimness */
+  z-index: -1; /* Keeps the background behind your content */
+  transform: scale(
+    1.1
+  ); /* Slightly scales up to prevent white edges caused by the blur */
 }
 
 .hero-content {
@@ -21,21 +58,6 @@
   padding-top: 3rem;
 }
 
-.hero h2 {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.hero p {
-  font-size: 1.2rem;
-  margin-bottom: 2rem;
-}
-
-.hero img {
-  padding: 1.5rem;
-  width: 380px;
-  height: 620px;
-}
 
 @keyframes unblur {
   from {
@@ -53,7 +75,8 @@
   background-color: var(--dark3);
   color: white;
   padding: 0.8rem 1.5rem;
-  border-radius: 5px;
+  height: fit-content;
+  border-radius: 0; /* Changed from 5px to 0 for square buttons */
   text-decoration: none;
   font-weight: 600;
   transition: background-color 0.3s;
@@ -65,8 +88,6 @@
 }
 
 .hero-images {
-  display: block;
-  flex-direction: row;
   filter: blur(10px);
   opacity: 0.8;
   animation: unblur 1s ease-out forwards;
@@ -112,7 +133,7 @@
 .section-title p {
   color: var(--dark2);
   max-width: 600px;
-  text-align: center;
+  text-align: justify;
   font-size: large;
 
   width: auto;
@@ -126,7 +147,7 @@
   display: inline-block;
   flex-direction: row;
   align-items: center;
-  text-align: left;
+  text-align: justify;
   justify-content: center;
   margin-bottom: 3rem;
   padding: 5rem;
@@ -215,54 +236,55 @@
   display: block;
 }
 
-.forms button {
-  width: 300px;
+.forms button,
+.form-btn {
+  width: 100%;
   margin-top: 10px;
   text-align: center;
-  display: inline-block;
   background-color: var(--dark3);
   color: white;
   padding: 0.8rem 1.5rem;
-  border-radius: 5px;
-  border: solid 2px;
+  border-radius: 0 !important; /* Uniform square buttons */
   text-decoration: none;
   font-weight: 600;
   transition: background-color 0.3s;
   cursor: pointer;
+  border: none;
 }
 
-.forms button:hover {
+.forms button:hover,
+.form-btn:hover {
   background-color: var(--light3);
   color: var(--dark3);
 }
 
-.form-title {
-  padding-bottom: 10px;
-  padding-top: 10px;
+.form-field {
+  padding: 5px 0;
   display: flex;
   flex-direction: column;
 }
-.form-title p {
-  color: var(--dark4);
+
+.form-field label {
+  color: var(--dark4) !important;
+  margin-bottom: 8px !important;
+  font-weight: 600 !important;
 }
 
-.form-title input {
-  border-color: #3d3d3d5f;
-  text-decoration: var(--dark4);
-  background-color: #fafafa;
-  border-radius: 5px;
-  height: 40px;
-  width: 300px;
-  text-indent: 5px;
+.form-field input,
+.form-field textarea {
+  border: solid 2px #3d3d3d5f !important;
+  background-color: #fafafa !important;
+  border-radius: 0 !important; /* Square inputs */
+  width: 100% !important;
+  padding: 10px !important;
+  color: var(--dark4) !important;
 }
 
-.form-title textarea {
-  text-decoration: var(--dark4);
-  background-color: #fafafa;
-  border-radius: 5px;
-  border: solid 2px #3d3d3d5f;
-  height: 80px;
-  width: 300px;
-  text-indent: 5px;
+.form-field input {
+  height: 45px !important;
+}
+
+.form-field textarea {
+  height: 120px !important;
   resize: none;
 }

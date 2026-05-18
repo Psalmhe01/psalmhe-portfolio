@@ -1,4 +1,4 @@
-.slider-container {
+.slider-box {
   position: relative;
   width: 80%;
   margin: auto;
@@ -7,8 +7,6 @@
 
 .slider {
   display: flex;
-  overflow-x: auto;
-  scroll-behavior: smooth;
   scrollbar-width: none; /* Firefox */
 }
 .slider::-webkit-scrollbar {
@@ -17,62 +15,72 @@
 
 .slider-item {
   flex: 0 0 auto;
-  width: 480px;   /* matches scroll step */
+  width: 480px; /* matches scroll step */
   margin: 10px;
   text-align: center;
   padding: 10px;
   font-size: x-large;
 }
 
-.slider-item img {
+.slider-item-img {
   width: 100%;
   height: 520px;
   object-fit: cover;
   transition: filter 0.3s;
 }
 
-.slider-item img:hover {
+.slider-item-img:hover {
   filter: brightness(70%);
   cursor: pointer;
 }
 
-.slider-box{
-    display: flex;
-    align-items: center;
-    flex-direction: column;
+.slider-container {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
 }
 
-.slider-box button{
-   width: 200px;
+.slider-box:hover{
+  .slider-btn{
+    opacity: 1;
+  };
+  .indicator{
+    opacity: 1
+  }
 }
+
+
 
 .slider-btn {
-    position: absolute;
-    top: 47%;
-    transform: translateY(-50%);
-    opacity: 50%;
-    background-color: transparent;
-    color: var(--dark2);
-    border: none;
-    font-size: 40px;
-    height: 100px;
-    padding: 0.8rem 1.2rem;
-    cursor: pointer;
-    /**z-index: 1;**/
-    display: inline-block;
-    text-decoration: none;
-    transition: background-color 0.3s;
+  opacity: 50%;
+  background-color: transparent;
+  color: var(--dark2);
+  border: none;
+  font-size: 40px;
+  height: 100px;
+  padding: 0.8rem 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  opacity: 0;
 }
 
-.slider-btn.right:hover {
-            border-left: solid 2px var(--dark2);
-            color: var(--dark3);
-        }
+.slider-btn:hover {
+  color: var(--dark3);
+  
+}
 
-.slider-btn.left:hover {
-            border-right: solid 2px var(--dark2);
-            color: var(--dark3);
-        }
 
-.slider-btn.left { left: 5px; }
-.slider-btn.right { right: 5px; }
+
+.indicator {
+  width: 30px;
+  height: 4px;
+  transition: width 300ms ease;
+  offset: 100px;
+  filter: opacity(0.5);
+  opacity: 0;
+
+  &[data-active] {
+    width: 75px;
+    filter: opacity(1);
+  }
+}

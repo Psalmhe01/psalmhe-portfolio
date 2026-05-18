@@ -1,80 +1,174 @@
-    import "../Style/Header.css";
-    import "../App.css";
-    import { useState, useRef, useEffect } from "react";
-    import { logoAbt } from "../Files/HomeImage.jsx";
-    import { Link, Navigate, useNavigate } from "react-router-dom";
+import "../Style/Header.css";
+import "../App.css";
+import { logoAbt } from "../Files/HomeImage.jsx";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Container,
+  Group,
+  Box,
+  Title,
+  Burger,
+  Drawer,
+  Stack,
+  Anchor,
+  Image,
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 
-    function Header() {
-    const [active, setActive] = useState(false);
-    const menuRef = useRef(null);
-    const toggleRef = useRef(null);
-    const navigate = useNavigate();
+function Header() {
+  const [opened, { toggle, close }] = useDisclosure(false);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        function handleDocClick(e) {
-        // If menu isn't open, nothing to do
-        if (!active) return;
-        const menuEl = menuRef.current;
-        const toggleEl = toggleRef.current;
-        if (!menuEl || !toggleEl) return;
-
-        // If the click target is inside menu or toggle, keep it open
-        if (menuEl.contains(e.target) || toggleEl.contains(e.target)) return;
-
-        // Otherwise close the menu
-        setActive(false);
-        }
-
-        document.addEventListener("click", handleDocClick);
-        return () => document.removeEventListener("click", handleDocClick);
-    }, [active]);
-
-    return (
-        <div className="header">
-        <div className="container header-container">
-            <div className="logo">
-            <Link to="/">
-                <img src={logoAbt[0]} alt="Psalmhe Logo" />
-            </Link>
-            <h1>PHOTOGRAPHY</h1>
-            </div>
-
-            <div
-            className="nav-toggle"
-            id="navToggle"
-            ref={toggleRef}
-            onClick={() => setActive(!active)}
-            onMouseOver={() => setActive(true)}
+  return (
+    <Box
+      component="header"
+      className="header"
+      py="md"
+      style={{ borderBottom: "1px solid var(--mantine-color-gray-2)", minHeight: "80px", alignContent: "center" }}
+      
+    >
+      <Container>
+        <Group justify="space-between" wrap="nowrap">
+          <Group align="center" gap="xs">
+            <Link
+              to="/"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                textDecoration: "none",
+                color: "inherit",
+                gap: "10px",
+              }}
             >
-            <i class="fas fa-bars"></i>
-            </div>
-            <nav>
-            <ul id="navMenu" ref={menuRef} className={active ? "active" : ""}>
-                <li>
-                <Link to="/" onClick={() => setActive(false)}>
-                    Home
-                </Link>
-                </li>
-                <li>
-                <a onClick={() => {setActive(false); navigate("/")}} href="#about">
-                    About
-                </a>
-                </li>
-                <li>
-                <a  onClick={() => {setActive(false); navigate("/portfolio"); window.scrollTo(top= 0, behavior=smooth)}}>
-                    Gallery
-                </a>
-                </li>
-                <li>
-                    <a href="#contact"  onClick={() => {setActive(false); navigate("/")}}>
-                        Contact
-                    </a>
-                </li>
-            </ul>
-            </nav>
-        </div>
-        </div>
-    );
-    }
+            <Stack gap="xs">
+              <Image
+                src={logoAbt[0]}
+                alt="Psalmhe Logo"
+                w={200}
+                h="auto"
+                fit="contain"
+              />
+              <Title
+                order={1}
+                size="h4"
+                style={{ letterSpacing: "3px", textTransform: "uppercase" }}
+              >
+                PHOTOGRAPHY
+              </Title>
+              </Stack>
+            </Link>
+          </Group>
 
-    export default Header;
+          <Group gap="lg" visibleFrom="sm" component="nav">
+            <Anchor component={Link} to="/" fw={500} underline="never" className="nav-links">
+              Home
+            </Anchor>
+            <Anchor
+              onClick={() => navigate("/")}
+              href="#about"
+              fw={500}
+              underline="never"
+              className="nav-links"
+            >
+              About
+            </Anchor>
+            <Anchor
+              onClick={() => {
+                navigate("/portfolio");
+                window.scrollTo(0, 0);
+              }}
+              fw={500}
+              underline="never"
+              className="nav-links"
+            >
+              Gallery
+            </Anchor>
+            <Anchor
+              onClick={() => navigate("/")}
+              href="#contact"
+              fw={500}
+              underline="never"
+              className="nav-links"
+            >
+              Contact
+            </Anchor>
+            {/***<Anchor
+              onClick={() => {
+                navigate("/book");
+                window.scrollTo(0, 0);
+              }}
+              fw={500}
+              underline="never"
+              className="nav-links"
+            >
+              Book
+            </Anchor>***/}
+          </Group>
+
+          <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+        </Group>
+      </Container>
+
+      <Drawer
+        opened={opened}
+        onClose={close}
+        size="100%"
+        padding="md"
+        title="Menu"
+        hiddenFrom="sm"
+      >
+        <Stack gap="md">
+          <Anchor component={Link} to="/" onClick={close} c="dark" size="lg">
+            Home
+          </Anchor>
+          <Anchor
+            onClick={() => {
+              navigate("/");
+              close();
+            }}
+            href="#about"
+            c="dark"
+            size="lg"
+          >
+            About
+          </Anchor>
+          <Anchor
+            onClick={() => {
+              navigate("/portfolio");
+              window.scrollTo(0, 0);
+              close();
+            }}
+            c="dark"
+            size="lg"
+          >
+            Gallery
+          </Anchor>
+          <Anchor
+            onClick={() => {
+              navigate("/");
+              close();
+            }}
+            href="#contact"
+            c="dark"
+            size="lg"
+          >
+            Contact
+          </Anchor>
+          <Anchor
+            onClick={() => {
+              navigate("/book");
+              window.scrollTo(0, 0);
+              close();
+            }}
+            c="dark"
+            size="lg"
+          >
+            Book
+          </Anchor>
+        </Stack>
+      </Drawer>
+    </Box>
+  );
+}
+
+export default Header;

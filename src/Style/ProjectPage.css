@@ -1,7 +1,7 @@
 .page-container {
   display: flex;
   flex-direction: column;
-  margin-top: 80px;
+  margin-top: 100px;
 }
 
 .page-container > img {
@@ -10,7 +10,6 @@
   height: 320px;
   object-fit: cover;
   object-position: top;
-  
 }
 .name-descript {
   width: 90%;
@@ -49,12 +48,11 @@
   margin: 0 0 1rem; /* vertical spacing between items */
   break-inside: avoid; /* avoid breaking images between columns */
   -webkit-column-break-inside: avoid;
-
 }
 
-.page-image-item:hover{
-    filter: brightness(80%);
-    cursor: pointer;
+.page-image-item:hover {
+  filter: brightness(80%);
+  cursor: pointer;
 }
 
 /* Lightbox styles */
@@ -85,11 +83,11 @@
   height: auto;
   object-fit: contain;
   display: block;
-  border-radius: 4px;
+  border-radius: 0px;
 }
 .lightbox-close {
   position: absolute;
-  right: -0.5rem;
+  right: 1rem;
   top: -0.5rem;
   background: transparent;
   border: none;
@@ -97,15 +95,34 @@
   height: 2rem;
   border-radius: 50%;
   font-size: 1.2rem;
-  cursor: pointer;
-  padding-top: 2rem;
-  padding-right: 2rem;
+  cursor: pointer; /* Keep cursor pointer */
   color: var(--light2);
   transition: transform 0.3s;
 }
 
-.lightbox-close:hover,.lightbox-next:hover,.lightbox-prev:hover{
-    transform: scale(1.3);
+.lightbox-close:hover,
+.lightbox-next:hover,
+.lightbox-prev:hover,
+.lightbox-download:hover {
+  transform: scale(1.3);
+}
+
+.lightbox-download {
+  position: absolute;
+  left: 1rem;
+  top: -0.5rem;
+  background: transparent;
+  border: none;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--light2);
+  transition: transform 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .lightbox-prev,
@@ -133,24 +150,24 @@
   right: 8px;
 }
 
-.page-ref{
-    margin: 2rem;
-    justify-content: space-between;
-    display: flex;
-    flex-direction: row
+.page-ref {
+  margin: 2rem;
+  justify-content: space-between;
+  display: flex;
+  flex-direction: row;
 }
 
-.page-ref-btn{
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px;
-    background-color: transparent;
-    border: solid 0.6px var(--dark3);
-    cursor: pointer;
-    text-decoration: none;
+.page-ref-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background-color: transparent;
+  border: solid 0.6px var(--dark3);
+  cursor: pointer;
+  text-decoration: none;
 }
 
-.page-ref-Link{
+.page-ref-Link {
   text-decoration: none;
 }

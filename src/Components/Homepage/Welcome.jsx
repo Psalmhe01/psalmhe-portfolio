@@ -1,24 +1,65 @@
 import "../../Style/Body.css";
 import { heroPics } from "../../Files/HomeImage.jsx";
 import { Link } from "react-router-dom";
+import {
+  Box,
+  Container,
+  Group,
+  Title,
+  Text,
+  Button,
+  Image,
+  SimpleGrid,
+  Stack,
+} from "@mantine/core";
 
 function Welcome() {
   return (
-    <section className="hero" id="welcome">
-      <div className="hero-content">
-        <h2>Welcome to Psalmhe Photography</h2>
-        <p>Some artists hold paintbrushes, others hold lenses...</p>
-        <Link to="/portfolio" className="btn">
-          View Gallery
-        </Link>
-        <div className="hero-images">
-          <img src={heroPics[0]} alt="hero-1" id="hero1" />
-          <img src={heroPics[1]} alt="hero-2" id="hero2" />
-          <img src={heroPics[2]} alt="hero-3" id="hero3" />
-          <img src={heroPics[3]} alt="hero-4" id="hero4" />
-        </div>
-      </div>
-    </section>
+    <Container
+      component="section"
+      className="hero"
+      id="welcome"
+      py={100}
+      
+      fluid
+    >
+      <Container fluid>
+        <Stack align="center" ta="center" gap="xl">
+          <Title order={2} size="h1" style={{ fontSize: "3.5rem" }}>
+            Welcome to Psalmhe Photography
+          </Title>
+          <Text size="xl" maw={600} opacity={0.8}>
+            Some artists hold paintbrushes, others hold lenses...
+          </Text>
+          <Button
+            component={Link}
+            to="/portfolio"
+            size="xl"
+            className="btn"
+          >
+            View Gallery
+          </Button>
+          <SimpleGrid
+            cols={{ base: 1, md: 4 }}
+            spacing="xl"
+            mt={50}
+            w="90%"
+            className="hero-images"
+          >
+            {heroPics.map((pic, index) => (
+              <Image
+                key={index}
+                src={pic}
+                radius="xs"
+                h={500}
+                fit="cover"
+                alt={`hero-${index}`}
+              />
+            ))}
+          </SimpleGrid>
+        </Stack>
+      </Container>
+    </Container>
   );
 }
 
