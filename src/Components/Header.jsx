@@ -154,7 +154,7 @@ function Header() {
           >
             Contact
           </Anchor>
-          <Anchor
+          {/**<Anchor
             onClick={() => {
               navigate("/book");
               window.scrollTo(0, 0);
@@ -164,7 +164,7 @@ function Header() {
             size="lg"
           >
             Book
-          </Anchor>
+          </Anchor>**/}
         </Stack>
       </Drawer>
     </Box>
