@@ -1,0 +1,17 @@
+// firestore.rules
+// Deploy with: firebase deploy --only firestore:rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /galleries/{slug} {
+      // Anyone can READ gallery metadata (they need name, passwordHash, photos)
+      // The password is hashed (SHA-256) — the plaintext is never stored
+      allow read: if true;
+
+      // Only authenticated users (you, the admin) can write
+      allow write: if request.auth != null;
+    }
+  }
+}

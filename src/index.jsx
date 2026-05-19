@@ -6,6 +6,7 @@ import "@mantine/carousel/styles.css";
 import App from "./App.jsx";
 import reportWebVitals from "./reportWebVitals";
 import { MantineProvider, createTheme } from "@mantine/core";
+import { ModalsProvider } from "@mantine/modals";
 
 const theme = createTheme({
   primaryColor: "dark",
@@ -32,7 +33,7 @@ const theme = createTheme({
   components: {
     Button: {
       defaultProps: {
-        radius: "xs",
+        radius: 0,
         variant: "filled",
       },
     },
@@ -49,7 +50,9 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="light">
-      <App />
+      <ModalsProvider modalProps={{ centered: true, radius: 0}}>
+        <App />
+      </ModalsProvider>
     </MantineProvider>
   </React.StrictMode>,
 );
