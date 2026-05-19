@@ -21,11 +21,39 @@ import {
 function ProjectPage() {
   const { category } = useParams();
   const navigate = useNavigate();
+  const [dynamicImages, setDynamicImages] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const found = categories.find((item) => {
     if (!item || !item.title || !category) return false;
     return item.title.toLowerCase() === String(category).toLowerCase();
   });
+
+  useEffect(() => {
+    // If the category has a tag, fetch images from Cloudinary dynamically
+    if (found?.tag) {
+      setLoading(true);
+      const cloudName = "dwzx3jib2";
+      fetch(
+        `https://res.cloudinary.com/${cloudName}/image/list/${found.tag}.json`,
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          const urls = data.resources.map(
+            (res) =>
+              `https://res.cloudinary.com/${cloudName}/image/upload/v${res.version}/${res.public_id}.${res.format}`,
+          );
+          setDynamicImages(urls);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch images from Cloudinary", err);
+          setLoading(false);
+        });
+    } else {
+      setDynamicImages(found?.image || []);
+    }
+  }, [category, found]);
 
   const [currentIndex, setCurrentIndex] = useState(null);
   const lastFocusedRef = useRef(null);
@@ -47,15 +75,17 @@ function ProjectPage() {
   };
 
   const lightboxSrc =
-    found && currentIndex !== null ? found.image[currentIndex] : "";
+    dynamicImages.length > 0 && currentIndex !== null
+      ? dynamicImages[currentIndex]
+      : "";
 
   const prevImage = useCallback(() => {
-    setCurrentIndex((idx) => (idx === 0 ? found.image.length - 1 : idx - 1));
-  }, [found.image.length]);
+    setCurrentIndex((idx) => (idx === 0 ? dynamicImages.length - 1 : idx - 1));
+  }, [dynamicImages.length]);
 
   const nextImage = useCallback(() => {
-    setCurrentIndex((idx) => (idx === found.image.length - 1 ? 0 : idx + 1));
-  }, [found.image.length]);
+    setCurrentIndex((idx) => (idx === dynamicImages.length - 1 ? 0 : idx + 1));
+  }, [dynamicImages.length]);
 
   useEffect(() => {
     if (currentIndex === null) return;
@@ -76,8 +106,16 @@ function ProjectPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <Box py="xl" ta="center">
+        <Text>Loading images...</Text>
+      </Box>
+    );
+  }
+
   const descript = found.description;
-  const cover = found.image[0];
+  const cover = dynamicImages[0];
   const projectName = found.title; // Use found.title for the project name
 
   // Logic for previous/next projects
@@ -101,7 +139,7 @@ function ProjectPage() {
         <Text component="p">{descript}</Text>
       </Box>
       <Box className="page-images">
-        {found.image.map((item, i) => (
+        {dynamicImages.map((item, i) => (
           <Image
             key={i}
             src={item}
@@ -183,12 +221,10 @@ function ProjectPage() {
           </button>
 
           <a
-            href={lightboxSrc}
+            href={lightboxSrc.replace("/upload/", "/upload/fl_attachment/")}
             download={`${projectName}-${currentIndex + 1}.jpg`}
             className="lightbox-download"
             aria-label="Download"
-            target="_blank"
-            rel="noopener noreferrer"
           >
             <IconDownload size={24} />
           </a>

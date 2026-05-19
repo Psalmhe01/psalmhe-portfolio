@@ -1,7 +1,7 @@
 import "../Style/Footer.css";
 import "../App.css";
 import BackToTopButton from "./TopButton.jsx";
-import psalmhe2 from "../Assets/Others/psalmhe2.png";
+import {logoAbt} from "../Files/HomeImage.jsx"; 
 import React, { useState } from "react";
 import { useForm, ValidationError } from "@formspree/react";
 import {
@@ -30,7 +30,7 @@ function Footer() {
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing={50} mb={60}>
           {/* Section 1: Branding & Info */}
           <Stack gap="xl">
-            <Image src={psalmhe2} alt="Psalmhe footer logo" w={150} />
+            <Image src={logoAbt[1]} alt="Psalmhe footer logo" w={150} />
             <Stack gap="sm">
               <Group gap="sm" wrap="nowrap" align="flex-start">
                 <Box component="i" className="fas fa-map-marker-alt" mt={5} />

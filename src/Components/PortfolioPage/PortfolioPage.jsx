@@ -38,7 +38,7 @@ function PortfolioPage() {
           </Text>
         </Stack>
 
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="xl">
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="xl" style={{justifyItems: "center"}}>
           {Images.map((item, i) => (
             <Card
               key={i}

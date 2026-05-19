@@ -1,38 +1,33 @@
-import AM1 from "../Assets/PortfolioPics/AM/AM1.jpg";
-import CM1 from "../Assets/PortfolioPics/CM/CM1.jpg";
-import CP1 from "../Assets/PortfolioPics/CP/CP1.jpg";
-import EP1 from "../Assets/PortfolioPics/EP/EP1.jpg";
-import EPH1 from "../Assets/PortfolioPics/EPH/EPH1.jpg";
-import TM1 from "../Assets/PortfolioPics/TM/TM1.jpg";
+const cloudinary = (folder, name) => `https://res.cloudinary.com/dwzx3jib2/image/upload/galleries/${folder}/${name}`;
 
 const Images = [
   {
-    image: AM1,
+    image: cloudinary("AM", "AM1.jpg"),
     title: "Architectural Marvels",
   },
 
   {
-    image: CM1,
+    image: cloudinary("CM", "CM1.jpg"),
     title: "Captivating Moments",
   },
 
   {
-    image: CP1,
+    image: cloudinary("CP","CP1_m5lpcy.jpg"),
     title: "Cultural Portraits",
   },
 
   {
-    image: EP1,
+    image: cloudinary("EP", "EP1_kk3szp.jpg"),
     title: "Enigmatic Portraits",
   },
 
   {
-    image: EPH1,
+    image: cloudinary("EPH", "EPH1_jyjy9m.jpg"),
     title: "Elegant Fashion Photography",
   },
 
   {
-    image: TM1,
+    image: cloudinary("TM", "TM1_t27nxj.jpg"),
     title: "Timeless Monochrome",
   },
 ];
