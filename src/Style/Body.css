@@ -1,4 +1,3 @@
-
 .header {
   position: fixed;
   top: 0;
@@ -43,7 +42,7 @@ body,
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url("../Assets/others/welcome.jpg");
+  background-image: url("../Assets/Others/welcome.jpg");
   background-size: cover;
   background-position: center;
   filter: blur(6px) brightness(40%); /* Adjust 8px for blur and 40% for dimness */
@@ -57,7 +56,6 @@ body,
   max-width: auto;
   padding-top: 3rem;
 }
-
 
 @keyframes unblur {
   from {
