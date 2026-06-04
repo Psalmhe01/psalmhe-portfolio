@@ -380,13 +380,29 @@ export const AdminCancellationNoticeEmail = ({
           ["Time", bookingTime],
           ["Occasion", occasion || "—"],
         ].map(([label, value], i, arr) => (
-          <div key={label} style={{ ...styles.row, borderBottom: i === arr.length - 1 ? "none" : "1px solid #e0e0e0" }}>
-            <span style={styles.label}>{label}</span>
-            <span style={styles.value}>{value}</span>
+          <div
+            key={label}
+            className="keep-white"
+            style={{
+              ...styles.row,
+              borderBottom: i === arr.length - 1 ? "none" : "1px solid #e0e0e0",
+            }}
+          >
+            <span className="text-label" style={styles.label}>
+              {label}
+            </span>
+            <span className="text-dark" style={styles.value}>
+              {value}
+            </span>
           </div>
         ))}
       </div>
-      <Text size="sm" c="dimmed" ta="center">This slot is now open in the availability calendar.</Text>
+      <p
+        className="text-muted"
+        style={{ ...styles.subline, textAlign: "center", marginTop: "24px" }}
+      >
+        This slot is now open in the availability calendar.
+      </p>
     </div>
   </EmailWrapper>
 );
