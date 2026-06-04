@@ -5,13 +5,109 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /galleries/{slug} {
-      // Anyone can READ gallery metadata (they need name, passwordHash, photos)
-      // The password is hashed (SHA-256) — the plaintext is never stored
-      allow read: if true;
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: galleries
+    // Document ID: slug (string)
+    // Fields:
+    //   - name: string (required, < 100 chars)
+    //   - passwordHash: string (required, SHA-256)
+    //   - photos: list (required, < 500 items)
+    //
+    // Collection: availability
+    // Document ID: slotKey (string, "YYYY-MM-DD HH:MM")
+    // Fields:
+    //   - booked: bool (required, must be true)
+    //
+    // Collection: bookings
+    // Document ID: slotKey (string)
+    // Fields:
+    //   - firstName, lastName, email, phone, occasion, notes,
+    //     bookingDate, bookingTime, slotKey, status, createdAt
+    //
+    // ===============================================================
 
-      // Only authenticated users (you, the admin) can write
-      allow write: if request.auth != null;
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && 
+             email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidAvailability() {
+      return hasRequiredFields(['booked', 'date']) &&
+             hasOnlyAllowedFields(['booked', 'date']) &&
+             request.resource.data.booked == true &&
+             request.resource.data.date is string;
+    }
+
+    function isValidBooking() {
+      let data = request.resource.data;
+      let allowedFields = [
+        'firstName', 'lastName', 'email', 'phone', 'occasion', 'notes',
+        'bookingDate', 'bookingTime', 'slotKey', 'status', 'createdAt'
+      ];
+      return hasRequiredFields([
+        'firstName', 'lastName', 'email', 'phone', 
+        'bookingDate', 'bookingTime', 'slotKey', 'status', 'createdAt'
+      ]) &&
+      hasOnlyAllowedFields(allowedFields) &&
+      data.firstName is string && data.firstName.size() > 0 && data.firstName.size() < 100 &&
+      data.lastName is string && data.lastName.size() > 0 && data.lastName.size() < 100 &&
+      isValidEmail(data.email) &&
+      data.phone is string && data.phone.size() > 5 && data.phone.size() < 25 &&
+      data.bookingDate is string &&
+      data.bookingTime is string &&
+      data.slotKey is string &&
+      data.status == 'pending' &&
+      data.createdAt is timestamp &&
+      (!('occasion' in data) || (data.occasion is string && data.occasion.size() < 200)) &&
+      (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /galleries/{slug} {
+      allow get, list: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /availability/{slotKey} {
+      // Required for availability checks in useEffect and transactions
+      allow get: if true;
+      // Required to fetch all taken slots for a specific day to filter the UI
+      allow list: if true;
+      // Mark a slot as taken (create only, updates not allowed for public)
+      allow create: if isValidAvailability();
+      allow update, delete: if isAuthenticated();
+    }
+
+    match /bookings/{bookingId} {
+      // Strict PII protection: only admin can read client details
+      allow read: if isAuthenticated();
+      // Public can create a booking through the transaction
+      allow create: if isValidBooking();
+      allow update, delete: if isAuthenticated();
     }
   }
 }

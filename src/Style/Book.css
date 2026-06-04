@@ -14,6 +14,7 @@
   justify-content: center;
   text-align: center;
   margin-top: 0;
+  overflow: hidden;
 }
 
 .background::before {
@@ -29,6 +30,7 @@
   background-repeat: no-repeat;
   background-attachment: fixed;
   filter: blur(2px) brightness(60%);
+  transform: scale(1.1);
   z-index: 0;
 }
 
@@ -52,23 +54,44 @@
   color: var(--dark3);
 }
 
-.instructions{
-    position: relative;
-    z-index: 1;
-    display: inline-block;
-    max-width: 400px;
-    padding: 10px;
-    margin-left: 5px;
-    margin-right: 5px;
+.instructions {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  max-width: 400px;
+  padding: 10px;
+  margin-left: 5px;
+  margin-right: 5px;
 }
 
-.instructions h1{
-    color: var(--light3);
-    border: 2px solid var(--light2);
-    margin-bottom: 5px;
+.instructions h1 {
+  color: var(--light3);
+  border: 2px solid var(--light2);
+  margin-bottom: 5px;
 }
 
-.instructions p{
-    color: var(--light2);
-    border: 2px solid var(--light2);
+.instructions p {
+  color: var(--light2);
+  border: 2px solid var(--light2);
+}
+
+.booking-container {
+  position: relative;
+  padding: 4rem 0;
+  overflow: hidden;
+}
+
+.booking-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("https://res.cloudinary.com/dwzx3jib2/image/upload/v1779189503/galleries/psalmhe-images/ej1d4kgglcvtermouajq.jpg");
+  background-size: cover;
+  background-position: center;
+  filter: blur(6px) brightness(40%);
+  transform: scale(1.1);
+  z-index: -1;
 }

@@ -16,6 +16,8 @@ import { AuthProvider, useAuth } from "./Context/AuthContext.jsx";
 import GalleryPage from "./Components/GalleryPage.jsx";
 import AdminDashboard from "./Components/Admin/AdminDashboard.jsx";
 import AdminLogin from "./Components/GalleryPage/AdminLogin.jsx";
+import AdminBookings from "./Components/Admin/AdminBookings.jsx";
+import AdminGalleries from "./Components/Admin/AdminGalleries.jsx";
 
 function AdminRoute() {
   const { user } = useAuth();
@@ -57,6 +59,8 @@ function App() {
                 />
                 <Route path="/gallery/:slug" element={<GalleryPage />} />
                 <Route path="/admin" element={<AdminRoute />} />
+                <Route path="/admin/galleries" element={<AdminGalleries />} />
+                <Route path="/admin/bookings" element={<AdminBookings />} />
 
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />

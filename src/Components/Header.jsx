@@ -92,7 +92,7 @@ function Header() {
             >
               Contact
             </Anchor>
-            {/***<Anchor
+            <Anchor
               onClick={() => {
                 navigate("/book");
                 window.scrollTo(0, 0);
@@ -102,7 +102,7 @@ function Header() {
               className="nav-links"
             >
               Book
-            </Anchor>***/}
+            </Anchor>
           </Group>
 
           <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
@@ -154,7 +154,7 @@ function Header() {
           >
             Contact
           </Anchor>
-          {/**<Anchor
+          <Anchor
             onClick={() => {
               navigate("/book");
               window.scrollTo(0, 0);
@@ -164,7 +164,7 @@ function Header() {
             size="lg"
           >
             Book
-          </Anchor>**/}
+          </Anchor>
         </Stack>
       </Drawer>
     </Box>
