@@ -18,6 +18,7 @@ import AdminDashboard from "./Components/Admin/AdminDashboard.jsx";
 import AdminLogin from "./Components/GalleryPage/AdminLogin.jsx";
 import AdminBookings from "./Components/Admin/AdminBookings.jsx";
 import AdminGalleries from "./Components/Admin/AdminGalleries.jsx";
+import CancelBooking from "./Components/Admin/CancelBooking.jsx";
 
 function AdminRoute() {
   const { user } = useAuth();
@@ -50,6 +51,7 @@ function App() {
                 <Route path="/" element={<Body />} />
                 <Route path="/portfolio" element={<PortfolioPage />} />
                 <Route path="/book" element={<Book />} />
+                <Route path="/cancel-booking/:id" element={<CancelBooking />} />
                 <Route path="/portfolio/:category" element={<ProjectPage />} />
 
                 {/* ── Gallery system ── */}

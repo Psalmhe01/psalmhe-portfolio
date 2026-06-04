@@ -186,6 +186,7 @@ const EmailWrapper = ({ children }) => (
 );
 
 export const ConfirmationEmail = ({
+  id,
   firstName,
   lastName,
   bookingDate,
@@ -264,6 +265,25 @@ export const ConfirmationEmail = ({
         style={styles.cta}
       >
         Get in touch
+      </a>
+
+      <p
+        style={{
+          fontSize: "12px",
+          color: "#888888",
+          textAlign: "center",
+          marginTop: "48px",
+          marginBottom: "8px",
+        }}
+      >
+        Need to change your plans?
+      </p>
+      <a
+        href={`https://psalmhe-portfolio.vercel.app/cancel-booking/${encodeURIComponent(id)}`}
+        className="text-dark"
+        style={{ ...styles.cta, background: "transparent", color: "#111111", border: "1px solid #111111", marginTop: "0" }}
+      >
+        Cancel Appointment
       </a>
     </div>
   </EmailWrapper>

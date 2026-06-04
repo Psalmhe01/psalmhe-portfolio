@@ -13,6 +13,8 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
+import { modals } from "@mantine/modals";
+import { notifications } from "@mantine/notifications";
 import { db } from "../../firebase";
 
 import {
@@ -117,8 +119,49 @@ function AdminBookings() {
       if (selectedBooking?.id === booking.id) close();
     } catch (err) {
       console.error("Error updating status:", err);
-      alert("Error processing request. Check permissions or console.");
+      notifications.show({
+        title: "Action Failed",
+        message: "Error processing status update. Please try again.",
+        color: "red",
+      });
     }
+  };
+
+  const handleDeleteBooking = (bookingId) => {
+    modals.openConfirmModal({
+      title: "Confirm Cancellation",
+      centered: true,
+      radius: 0,
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete this booking? This will permanently
+          remove the client record and immediately free up the time slot for
+          others. This action cannot be undone.
+        </Text>
+      ),
+      labels: { confirm: "Yes, Cancel & Delete", cancel: "No, Keep Record" },
+      confirmProps: { color: "red", radius: 0 },
+      cancelProps: { radius: 0 },
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, "bookings", bookingId));
+          await deleteDoc(doc(db, "availability", bookingId));
+          await fetchBookings();
+          if (selectedBooking?.id === bookingId) close();
+          notifications.show({
+            message: "Booking record successfully removed.",
+            color: "gray",
+          });
+        } catch (err) {
+          console.error("Error deleting booking:", err);
+          notifications.show({
+            title: "Delete Failed",
+            message: "Could not remove the booking record.",
+            color: "red",
+          });
+        }
+      },
+    });
   };
 
   const viewDetails = (booking) => {
@@ -242,6 +285,14 @@ function AdminBookings() {
                               </Button>
                             </>
                           )}
+                          <Button
+                            size="compact-xs"
+                            color="gray"
+                            variant="subtle"
+                            onClick={() => handleDeleteBooking(booking.id)}
+                          >
+                            Delete
+                          </Button>
                         </Group>
                       </Table.Td>
                     </Table.Tr>
@@ -333,6 +384,13 @@ function AdminBookings() {
                     </Button>
                   </>
                 )}
+                <Button
+                  color="red"
+                  variant="subtle"
+                  onClick={() => handleDeleteBooking(selectedBooking.id)}
+                >
+                  Delete Record
+                </Button>
                 <Button variant="default" onClick={close}>
                   Close
                 </Button>
