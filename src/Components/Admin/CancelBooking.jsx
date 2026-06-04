@@ -4,7 +4,11 @@ import emailjs from "@emailjs/browser";
 import { renderToStaticMarkup } from "react-dom/server";
 import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../../firebase";
-import { CancellationConfirmationEmail, AdminCancellationNoticeEmail } from "./EmailTemplates";
+import { notifications } from "@mantine/notifications";
+import {
+  CancellationConfirmationEmail,
+  AdminCancellationNoticeEmail,
+} from "./EmailTemplates";
 import {
   Container,
   Paper,
@@ -54,48 +58,61 @@ export default function CancelBooking() {
     if (!id) return;
     setCancelling(true);
     try {
-      // Notify photographer via email before deletion while we still have data
-      if (booking) {
-        const adminEmailHtml = renderToStaticMarkup(
-          <AdminCancellationNoticeEmail {...booking} />
-        );
-
-        const clientEmailHtml = renderToStaticMarkup(
-          <CancellationConfirmationEmail {...booking} />
-        );
-
-        // Send notification to Admin
-        await emailjs.send(
-          import.meta.env.VITE_EMAILJS_SERVICE_ID,
-          import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-          {
-            client_name: `${booking.firstName} ${booking.lastName}`,
-            client_email: 'psalmhe@gmail.com',
-            message_html: adminEmailHtml,
-          },
-          import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-        );
-
-        // Send confirmation to Client
-        await emailjs.send(
-          import.meta.env.VITE_EMAILJS_SERVICE_ID,
-          import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-          {
-            client_name: booking.firstName,
-            client_email: booking.email,
-            message_html: clientEmailHtml,
-          },
-          import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-        );
-      }
-
-      // Delete from both collections to free up the slot
+      // 1. Delete from both collections to free up the slot immediately
       await deleteDoc(doc(db, "availability", id));
       await deleteDoc(doc(db, "bookings", id));
+
       setCancelled(true);
+
+      // 2. Notify photographer and client via email (Non-blocking)
+      if (booking) {
+        try {
+          const adminEmailHtml = renderToStaticMarkup(
+            <AdminCancellationNoticeEmail {...booking} />,
+          );
+          const clientEmailHtml = renderToStaticMarkup(
+            <CancellationConfirmationEmail {...booking} />,
+          );
+
+          // Send notification to Admin
+          await emailjs.send(
+            import.meta.env.VITE_EMAILJS_SERVICE_ID,
+            import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+            {
+              client_name: `${booking.firstName} ${booking.lastName}`,
+              // This parameter must be the Admin's email to ensure the notice reaches you.
+              // The client's email is still visible inside the adminEmailHtml.
+              client_email: "psalmhe@gmail.com",
+              message_html: adminEmailHtml,
+            },
+            import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+          );
+
+          // Send confirmation to Client
+          await emailjs.send(
+            import.meta.env.VITE_EMAILJS_SERVICE_ID,
+            import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+            {
+              client_name: booking.firstName,
+              client_email: booking.email,
+              message_html: clientEmailHtml,
+            },
+            import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+          );
+        } catch (emailErr) {
+          console.error("Email notification error:", emailErr);
+          // Cancellation succeeded in DB, so we don't interrupt the user's view
+        }
+      }
     } catch (err) {
       console.error("Cancellation Error:", err);
-      alert("Failed to cancel the appointment. Please try again later.");
+      notifications.show({
+        title: "Cancellation Failed",
+        message:
+          "We couldn't process your cancellation. This is usually due to permission settings or the booking having already been processed.",
+        color: "red",
+        radius: 0,
+      });
     } finally {
       setCancelling(false);
     }
