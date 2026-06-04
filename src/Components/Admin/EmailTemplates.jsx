@@ -289,6 +289,108 @@ export const ConfirmationEmail = ({
   </EmailWrapper>
 );
 
+export const CancellationConfirmationEmail = ({
+  firstName,
+  bookingDate,
+  bookingTime,
+}) => (
+  <EmailWrapper>
+    <div
+      className="email-header keep-white"
+      style={{ ...styles.header, backgroundColor: "#ffffff" }}
+    >
+      <p className="text-dark" style={styles.brand}>
+        Psalmhe Photography
+      </p>
+      <div
+        className="keep-cream text-dark"
+        style={{ ...styles.statusPill, ...styles.deniedPill }}
+      >
+        Cancelled
+      </div>
+      <h1 className="text-dark" style={styles.headline}>
+        Your cancellation is confirmed.
+      </h1>
+      <p className="text-muted" style={styles.subline}>
+        We're sorry you couldn't make it.
+      </p>
+    </div>
+
+    <div className="keep-white" style={styles.content}>
+      <p className="text-dark" style={{ color: "#111111" }}>
+        Hi {firstName},
+      </p>
+      <p
+        className="text-muted"
+        style={{ lineHeight: "1.7", margin: "20px 0", color: "#444444" }}
+      >
+        This email confirms that your session for <strong>{bookingDate}</strong> at <strong>{bookingTime}</strong> has been cancelled.
+      </p>
+
+      <p
+        className="text-muted"
+        style={{ fontSize: "14px", lineHeight: "1.75", color: "#444444" }}
+      >
+        Plans change, and that's okay! If you'd like to reschedule for a different time, I'd love to have you back.
+      </p>
+      <a
+        href="https://psalmhe-portfolio.vercel.app/book"
+        className="keep-dark text-white"
+        style={styles.cta}
+      >
+        Schedule New Appointment
+      </a>
+    </div>
+  </EmailWrapper>
+);
+
+export const AdminCancellationNoticeEmail = ({
+  firstName,
+  lastName,
+  email,
+  bookingDate,
+  bookingTime,
+  occasion,
+}) => (
+  <EmailWrapper>
+    <div
+      className="email-header keep-white"
+      style={{ ...styles.header, backgroundColor: "#ffffff" }}
+    >
+      <p className="text-dark" style={styles.brand}>
+        Admin Notification
+      </p>
+      <div
+        className="keep-dark text-white"
+        style={{ ...styles.statusPill, ...styles.confirmedPill, backgroundColor: "#d0021b" }}
+      >
+        Notice: Cancelled
+      </div>
+      <h1 className="text-dark" style={styles.headline}>
+        A client has cancelled.
+      </h1>
+    </div>
+
+    <div className="keep-white" style={styles.content}>
+      <div style={styles.detailsBlock}>
+        {[
+          ["Client", `${firstName} ${lastName}`],
+          ["Email", email],
+          ["Date", bookingDate],
+          ["Time", bookingTime],
+          ["Occasion", occasion || "—"],
+        ].map(([label, value], i, arr) => (
+          <div key={label} style={{ ...styles.row, borderBottom: i === arr.length - 1 ? "none" : "1px solid #e0e0e0" }}>
+            <span style={styles.label}>{label}</span>
+            <span style={styles.value}>{value}</span>
+          </div>
+        ))}
+      </div>
+      <Text size="sm" c="dimmed" ta="center">This slot is now open in the availability calendar.</Text>
+    </div>
+  </EmailWrapper>
+);
+
 export const DenialEmail = ({ firstName, bookingDate, bookingTime }) => (
   <EmailWrapper>
     <div
