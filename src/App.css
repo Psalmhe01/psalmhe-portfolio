@@ -13,3 +13,60 @@ body {
   background-color: var(--light2);
   padding-top: 100px;
 }
+
+.page-transition-shell {
+  animation: pageFadeIn 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: opacity;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+button,
+a,
+.card,
+.portfolio-card,
+.photo-item,
+.gallery-card {
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+img:hover,
+button:hover,
+a:hover,
+.card:hover,
+.portfolio-card:hover,
+.photo-item:hover,
+.gallery-card:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.02);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition:
+    opacity 1.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
