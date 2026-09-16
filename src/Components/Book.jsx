@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   collection,
-  doc,
-  getDocs,
-  deleteDoc,
+  onSnapshot,
   query,
-  runTransaction,
-  serverTimestamp,
   where,
 } from "firebase/firestore";
+import { sendCancellationEmails } from "./Admin/sendCancellationEmails";
+import { createCancellationToken, cancelWithToken } from "../bookingAccess";
+import { callBackend } from "../backend";
+import { BOOKING_TIME_ZONE, bookingLocalTime } from "../bookingTime";
 import { db } from "../firebase.js";
 import {
   Box,
@@ -42,12 +42,14 @@ const TIME_SLOTS = [
 ];
 
 function Book() {
-  const today = useMemo(() => {
-    const now = new Date();
-    const offset = now.getTimezoneOffset();
-    const localDate = new Date(now.getTime() - offset * 60 * 1000);
-    return localDate.toISOString().split("T")[0];
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
   }, []);
+  const localNow = bookingLocalTime(now);
+  const today = localNow.slice(0, 10);
+  const attempt = useRef(null);
 
   const [bookingDate, setBookingDate] = useState(today);
   const [bookingTime, setBookingTime] = useState("");
@@ -62,56 +64,33 @@ function Book() {
   const [cancelSuccessOpened, { open: openCancelSuccess, close: closeCancelSuccess }] =
     useDisclosure(false);
 
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+  const [availabilityError, setAvailabilityError] = useState(false);
+
   useEffect(() => {
-    let isMounted = true;
-
-    async function fetchAvailability() {
-      if (!bookingDate) return;
-
-      try {
-        const q = query(
-          collection(db, "availability"),
-          where("date", "==", bookingDate),
-        );
-        const querySnapshot = await getDocs(q);
-        const booked = [];
-        querySnapshot.forEach((doc) => {
-          const time = doc.id.split(" ")[1];
-          if (time) booked.push(time);
-        });
-        if (isMounted) setBookedSlots(booked);
-      } catch (err) {
-        console.error("Error fetching availability:", err);
-      }
-    }
-
-    fetchAvailability();
-
-    return () => {
-      isMounted = false;
-    };
+    setBookedSlots([]);
+    setAvailabilityLoading(true);
+    setAvailabilityError(false);
+    if (!bookingDate) return;
+    return onSnapshot(
+      query(collection(db, "availability"), where("date", "==", bookingDate)),
+      (snapshot) => {
+        setBookedSlots(snapshot.docs.map((entry) => entry.id.split(" ")[1]));
+        setAvailabilityLoading(false);
+      },
+      () => {
+        setAvailabilityError(true);
+        setAvailabilityLoading(false);
+      },
+    );
   }, [bookingDate]);
 
   const availableTimeSlots = useMemo(() => {
-    const isToday = bookingDate === today;
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-
-    return TIME_SLOTS.filter((slot) => {
-      if (bookedSlots.includes(slot)) return false;
-
-      if (isToday) {
-        const [hour, minute] = slot.split(":").map(Number);
-        if (hour < currentHour) return false;
-        if (hour === currentHour && minute <= currentMinute) return false;
-      }
-
-      return true;
-    });
-  }, [bookingDate, bookedSlots, today]);
+    return TIME_SLOTS.filter((slot) => !bookedSlots.includes(slot) && `${bookingDate} ${slot}` > localNow);
+  }, [bookingDate, bookedSlots, localNow]);
 
   useEffect(() => {
+    if (isSubmitting || attempt.current) return;
     if (
       availableTimeSlots.length > 0 &&
       !availableTimeSlots.includes(bookingTime)
@@ -120,10 +99,11 @@ function Book() {
     } else if (availableTimeSlots.length === 0) {
       setBookingTime("");
     }
-  }, [availableTimeSlots, bookingTime]);
+  }, [availableTimeSlots, bookingTime, isSubmitting]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmitting || availabilityLoading || availabilityError) return;
     const form = event.currentTarget;
     setStatusMessage("");
 
@@ -149,44 +129,24 @@ function Book() {
       return;
     }
 
-    const slotKey = `${bookingDate} ${bookingTime}`;
+    const payload = { firstName, lastName, email, phone, occasion, notes, bookingDate, bookingTime };
+    const fingerprint = JSON.stringify(payload);
+    const retrying = attempt.current?.fingerprint === fingerprint;
+    if (!retrying && (!availableTimeSlots.includes(bookingTime) || `${bookingDate} ${bookingTime}` <= bookingLocalTime())) {
+      setStatusMessage("Please choose a future, available time.");
+      return;
+    }
+    if (!retrying) {
+      attempt.current = { fingerprint, requestId: createCancellationToken() };
+    }
 
     setIsSubmitting(true);
 
     try {
-      const availabilityRef = doc(db, "availability", slotKey);
-      const bookingRef = doc(db, "bookings", slotKey);
+      const result = await callBackend("createBooking", { ...payload, requestId: attempt.current.requestId });
 
-      await runTransaction(db, async (transaction) => {
-        // We get both documents to ensure the transaction treats the subsequent
-        // sets as 'create' operations with an 'exists: false' precondition.
-        const availSnap = await transaction.get(availabilityRef); // only read this one
-
-        if (availSnap.exists()) {
-          throw new Error("SLOT_TAKEN");
-        }
-
-        // Mark the slot as taken in the public availability collection.
-        // We store 'date' so we can query all booked slots for a given day.
-        transaction.set(availabilityRef, { booked: true, date: bookingDate });
-
-        // Save the private booking details in the protected bookings collection
-        transaction.set(bookingRef, {
-          firstName,
-          lastName,
-          email,
-          phone,
-          occasion,
-          notes,
-          bookingDate,
-          bookingTime,
-          slotKey,
-          status: "pending",
-          createdAt: serverTimestamp(),
-        });
-      });
-
-      await fetch("https://formspree.io/f/xkgqzeey", {
+      // Notification delivery must never turn a saved booking into an apparent failure.
+      fetch("https://formspree.io/f/xkgqzeey", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -202,21 +162,14 @@ function Book() {
           bookingTime,
           notes,
           subject: "New photography booking request",
-          message: `New booking request for ${bookingDate} at ${bookingTime}.\nClient: ${firstName} ${lastName}\nEmail: ${email}\nPhone: ${phone}\nOccasion: ${occasion || "N/A"}\nNotes: ${notes || "N/A"}`,
+          message: `New booking request for ${bookingDate} at ${bookingTime} (${BOOKING_TIME_ZONE}).\nClient: ${firstName} ${lastName}\nEmail: ${email}\nPhone: ${phone}\nOccasion: ${occasion || "N/A"}\nNotes: ${notes || "N/A"}`,
         }),
-      });
+      }).then((response) => {
+        if (!response.ok) throw new Error("Notification delivery failed");
+      }).catch(() => console.warn("Booking saved; photographer notification could not be delivered."));
 
-      const finalData = {
-        firstName,
-        lastName,
-        email,
-        phone,
-        occasion,
-        notes,
-        bookingDate,
-        bookingTime,
-        slotKey,
-      };
+      const finalData = result;
+      attempt.current = null;
 
       setSubmittedBooking(finalData);
       setStatusMessage("Your booking request has been received.");
@@ -225,17 +178,20 @@ function Book() {
       openSuccess();
     } catch (error) {
       console.error("Booking Error:", error);
-      if (error?.message === "SLOT_TAKEN") {
+      if (!["functions/internal", "functions/unavailable", "functions/deadline-exceeded"].includes(error?.code)) attempt.current = null;
+      if (error?.code === "functions/already-exists") {
         setStatusMessage(
           "That date and time is already booked. Please choose another slot.",
         );
-      } else if (error?.code === "permission-denied") {
+      } else if (["functions/invalid-argument", "functions/resource-exhausted", "functions/failed-precondition"].includes(error?.code)) {
+        setStatusMessage(error.message);
+      } else if (["permission-denied", "functions/unauthenticated", "functions/permission-denied"].includes(error?.code)) {
         setStatusMessage(
-          "Access denied. Please ensure your Firestore Security Rules allow writes to 'availability' and 'bookings'.",
+          "We could not reserve that time. Please refresh and try again, or contact the photographer.",
         );
       } else {
         setStatusMessage(
-          "We could not save your request right now. Please try again in a moment.",
+          "We could not confirm the response. Retry with the same details to check your request.",
         );
       }
     } finally {
@@ -247,9 +203,8 @@ function Book() {
     if (!submittedBooking) return;
     setIsSubmitting(true);
     try {
-      const slotKey = submittedBooking.slotKey;
-      await deleteDoc(doc(db, "availability", slotKey));
-      await deleteDoc(doc(db, "bookings", slotKey));
+      const cancelledBooking = await cancelWithToken(submittedBooking.cancellationToken);
+      void sendCancellationEmails(cancelledBooking);
 
       closeCancel();
       closeSuccess();
@@ -289,18 +244,21 @@ function Book() {
                 <TextInput
                   label="First Name"
                   name="firstName"
+                  maxLength={99}
                   placeholder="Enter your first name"
                   required
                 />
                 <TextInput
                   label="Last Name"
                   name="lastName"
+                  maxLength={99}
                   placeholder="Enter your last name"
                   required
                 />
                 <TextInput
                   label="Email Address"
                   name="email"
+                  maxLength={254}
                   type="email"
                   placeholder="name@example.com"
                   required
@@ -308,6 +266,8 @@ function Book() {
                 <TextInput
                   label="Phone Number"
                   name="phone"
+                  minLength={6}
+                  maxLength={24}
                   placeholder="(555) 123-4567"
                   required
                 />
@@ -326,12 +286,12 @@ function Book() {
                   required
                 />
                 <Select
-                  label="Preferred Time"
+                  label={`Preferred Time (${BOOKING_TIME_ZONE})`}
                   name="bookingTime"
                   placeholder="Pick a time"
-                  data={availableTimeSlots}
+                  data={attempt.current && bookingTime && !availableTimeSlots.includes(bookingTime) ? [bookingTime, ...availableTimeSlots] : availableTimeSlots}
                   value={bookingTime}
-                  disabled={availableTimeSlots.length === 0}
+                  disabled={availabilityLoading || availabilityError || (availableTimeSlots.length === 0 && !attempt.current)}
                   onChange={setBookingTime}
                   required
                 />
@@ -340,11 +300,13 @@ function Book() {
               <TextInput
                 label="Occasion"
                 name="occasion"
+                  maxLength={199}
                 placeholder="Portraits, maternity, family session, event, etc."
               />
               <Textarea
                 label="Notes"
                 name="notes"
+                  maxLength={999}
                 minRows={4}
                 placeholder="Tell me about your session, location, or any special requests."
               />
@@ -354,7 +316,7 @@ function Book() {
                 c={availableTimeSlots.length === 0 ? "red" : "teal"}
                 fw={600}
               >
-                {availableTimeSlots.length === 0
+                {availabilityLoading ? "Checking availability..." : availabilityError ? "Unable to load availability. Please refresh and try again." : availableTimeSlots.length === 0
                   ? "No slots available for this date. Please pick another day."
                   : "Please choose an available time slot above."}
               </Text>
@@ -369,7 +331,7 @@ function Book() {
                 type="submit"
                 size="lg"
                 loading={isSubmitting}
-                disabled={!bookingTime}
+                disabled={!bookingTime || availabilityLoading || availabilityError}
               >
                 Submit Booking Request
               </Button>
@@ -382,7 +344,7 @@ function Book() {
       <Modal
         opened={successOpened}
         onClose={closeSuccess}
-        title="Booking Request Confirmed"
+        title="Booking Request Received"
         centered
         radius="md"
         size="lg"

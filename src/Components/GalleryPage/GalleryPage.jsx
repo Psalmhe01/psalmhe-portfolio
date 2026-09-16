@@ -1,8 +1,9 @@
 // src/Components/GalleryPage/GalleryPage.jsx
 
+import { isAdminUser } from "../../adminAccess";
 import { useState, useCallback, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useGallery, hashPassword } from "../../Hooks/useGallery.js";
+import { useGallery } from "../../Hooks/useGallery.js";
 import {
   Center,
   Loader,
@@ -33,11 +34,10 @@ import PhotoGrid from "./components/PhotoGrid";
 export default function GalleryPage({ isAdmin = false }) {
   const { slug } = useParams();
   const { user } = useAuth();
-  const { gallery, loading, error, updateGallery, deletePhoto } =
-    useGallery(slug);
+  const { gallery, loading, error, updateGallery, deletePhoto, unlock } =
+    useGallery(slug, isAdmin && isAdminUser(user));
 
   const [passwordInput, setPasswordInput] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
   const [wrongPassword, setWrongPassword] = useState(false);
   const [checking, setChecking] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState(null);
@@ -51,19 +51,20 @@ export default function GalleryPage({ isAdmin = false }) {
     if (gallery?.titleFont) loadGoogleFont(gallery.titleFont);
   }, [gallery?.titleFont]);
 
-  if ((isAdmin && !unlocked) || (gallery && !gallery.passwordHash && !unlocked))
-    setUnlocked(true);
-
+  const canView = Boolean(gallery);
   const handleUnlock = async () => {
+    if (checking) return;
     setChecking(true);
-    const hash = await hashPassword(passwordInput);
-    if (hash === gallery.passwordHash) {
-      setUnlocked(true);
-      setWrongPassword(false);
-    } else {
+    setWrongPassword(false);
+    try {
+      await unlock(passwordInput);
+      setPasswordInput("");
+    } catch (err) {
       setWrongPassword(true);
+      notifications.show({ message: err.code === "functions/internal" ? "Unable to open this gallery. Please try again." : err.message, color: "red" });
+    } finally {
+      setChecking(false);
     }
-    setChecking(false);
   };
 
   const handleDownload = useCallback(async (photo) => {
@@ -72,8 +73,11 @@ export default function GalleryPage({ isAdmin = false }) {
 
   const handleDownloadAll = useCallback(async () => {
     setDownloadingAll(true);
-    await downloadAllPhotosAsZip(gallery.name, gallery.photos);
-    setDownloadingAll(false);
+    try {
+      await downloadAllPhotosAsZip(gallery.name, gallery.photos);
+    } finally {
+      setDownloadingAll(false);
+    }
   }, [gallery]);
 
   const handleOpenLightbox = (photo, index) => {
@@ -190,7 +194,7 @@ export default function GalleryPage({ isAdmin = false }) {
 
   // ── Password Gate ──────────────────────────────────
 
-  if (!unlocked) {
+  if (!canView) {
     return (
       <Center h="100vh" bg="dark.9" p="md">
         <Paper
@@ -205,7 +209,7 @@ export default function GalleryPage({ isAdmin = false }) {
           <Stack align="center" gap="xs" mb="lg">
             <Text size="2rem">🔒</Text>
             <Title order={2} fw={400} c="gray.1" ta="center">
-              {gallery.name}
+              {gallery?.name || "Your Photo Gallery"}
             </Title>
             <Text size="sm" c="dimmed" ta="center">
               This gallery is password protected.
@@ -217,7 +221,9 @@ export default function GalleryPage({ isAdmin = false }) {
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
-              error={wrongPassword ? "Incorrect password." : undefined}
+              error={wrongPassword ? "Unable to unlock. Check the password and try again." : undefined}
+              maxLength={128}
+              autoComplete="current-password"
               autoFocus
             />
             <Button
@@ -251,6 +257,7 @@ export default function GalleryPage({ isAdmin = false }) {
 
   return (
     <Box style={{ background: bg, minHeight: "100vh" }}>
+      {isAdmin && gallery.needsMigration && <Text c="red" ta="center" p="md">These photos need a privacy migration before clients can open the gallery.</Text>}
       {/* Cover */}
       <GalleryCover gallery={gallery} isAdmin={isAdmin} />
 

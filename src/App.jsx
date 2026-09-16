@@ -1,12 +1,12 @@
+import { lazy, Suspense } from "react";
+import { isAdminUser } from "./adminAccess";
 import Header from "./Components/Header.jsx";
 import Body from "./Components/Homepage/Body.jsx";
 import PortfolioPage from "./Components/PortfolioPage/PortfolioPage.jsx";
-import Book from "./Components/Book.jsx";
 import Footer from "./Components/Footer.jsx";
 import AnimatedPage from "./Components/AnimatedPage.jsx";
 import "./App.css";
 import { Box } from "@mantine/core";
-import ProjectPage from "./Components/PortfolioPage/ProjectPage.jsx";
 import {
   BrowserRouter as Router,
   Routes,
@@ -15,14 +15,17 @@ import {
   useLocation,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./Context/AuthContext.jsx";
-import GalleryPage from "./Components/GalleryPage.jsx";
-import AdminDashboard from "./Components/Admin/AdminDashboard.jsx";
-import AdminLogin from "./Components/GalleryPage/AdminLogin.jsx";
-import AdminBookings from "./Components/Admin/AdminBookings.jsx";
-import AdminGalleries from "./Components/Admin/AdminGalleries.jsx";
-import CancelBooking from "./Components/Admin/CancelBooking.jsx";
 
-function AdminRoute() {
+const Book = lazy(() => import("./Components/Book.jsx"));
+const ProjectPage = lazy(() => import("./Components/PortfolioPage/ProjectPage.jsx"));
+const GalleryPage = lazy(() => import("./Components/GalleryPage.jsx"));
+const AdminDashboard = lazy(() => import("./Components/Admin/AdminDashboard.jsx"));
+const AdminLogin = lazy(() => import("./Components/GalleryPage/AdminLogin.jsx"));
+const AdminBookings = lazy(() => import("./Components/Admin/AdminBookings.jsx"));
+const AdminGalleries = lazy(() => import("./Components/Admin/AdminGalleries.jsx"));
+const CancelBooking = lazy(() => import("./Components/Admin/CancelBooking.jsx"));
+
+function AdminRoute({ children = <AdminDashboard /> }) {
   const { user } = useAuth();
   if (user === undefined)
     return (
@@ -38,7 +41,7 @@ function AdminRoute() {
         Loading admin panel...
       </div>
     );
-  return user ? <AdminDashboard /> : <AdminLogin />;
+  return isAdminUser(user) ? children : <AdminLogin />;
 }
 
 function AppRoutes() {
@@ -48,6 +51,7 @@ function AppRoutes() {
     <Box component="main" style={{ minHeight: "calc(100vh - 180px)" }}>
       {/* The key here forces a remount and re-triggers the animation on every path change */}
       <AnimatedPage key={location.pathname}>
+        <Suspense fallback={<Box py={100} ta="center">Loading page...</Box>}>
         <Routes location={location}>
           <Route path="/" element={<Body />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
@@ -58,16 +62,17 @@ function AppRoutes() {
           {/* ── Gallery system ── */}
           <Route
             path="/admin/gallery/:slug"
-            element={<GalleryPage isAdmin={true} />}
+            element={<AdminRoute><GalleryPage isAdmin={true} /></AdminRoute>}
           />
           <Route path="/gallery/:slug" element={<GalleryPage />} />
           <Route path="/admin" element={<AdminRoute />} />
-          <Route path="/admin/galleries" element={<AdminGalleries />} />
-          <Route path="/admin/bookings" element={<AdminBookings />} />
+          <Route path="/admin/galleries" element={<AdminRoute><AdminGalleries /></AdminRoute>} />
+          <Route path="/admin/bookings" element={<AdminRoute><AdminBookings /></AdminRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </AnimatedPage>
     </Box>
   );

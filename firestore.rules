@@ -1,113 +1,96 @@
-// firestore.rules
-// Deploy with: firebase deploy --only firestore:rules
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: galleries
-    // Document ID: slug (string)
-    // Fields:
-    //   - name: string (required, < 100 chars)
-    //   - passwordHash: string (required, SHA-256)
-    //   - photos: list (required, < 500 items)
-    //
-    // Collection: availability
-    // Document ID: slotKey (string, "YYYY-MM-DD HH:MM")
-    // Fields:
-    //   - booked: bool (required, must be true)
-    //
-    // Collection: bookings
-    // Document ID: slotKey (string)
-    // Fields:
-    //   - firstName, lastName, email, phone, occasion, notes,
-    //     bookingDate, bookingTime, slotKey, status, createdAt
-    //
-    // ===============================================================
-
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    function isAuthenticated() {
-      return request.auth != null;
+    // Bookings are created by the validated, App Check-protected server endpoint.
+    // Public availability contains only booked/date. Cancellation tokens are
+    // random bearer capabilities; they never appear in that public collection.
+    // Galleries are admin-only. gallerySecrets, rateLimits and bookingRequests
+    // are server-only; clients receive a sanitized gallery from openGallery.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == 'psalmhe@gmail.com' &&
+        request.auth.token.email_verified == true;
     }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
+    function tokenValid(token) {
+      return token is string && token.matches('^[a-f0-9]{64}$');
     }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+    function cancelledTogether(slotKey) {
+      let booking = /databases/$(database)/documents/bookings/$(slotKey);
+      let token = get(booking).data.cancellationToken;
+      let access = /databases/$(database)/documents/bookingCancellations/$(token);
+      return tokenValid(token) && exists(access) && !existsAfter(access) &&
+        !existsAfter(booking) && !existsAfter(/databases/$(database)/documents/availability/$(slotKey));
     }
-
-    function isValidEmail(email) {
-      return email is string && 
-             email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    function adminDeletedTogether(slotKey) {
+      let booking = get(/databases/$(database)/documents/bookings/$(slotKey)).data;
+      return isAdmin() && !existsAfter(/databases/$(database)/documents/bookings/$(slotKey)) &&
+        !existsAfter(/databases/$(database)/documents/availability/$(slotKey)) &&
+        (!('cancellationToken' in booking) || !existsAfter(/databases/$(database)/documents/bookingCancellations/$(booking.cancellationToken)));
     }
-
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-    function isValidAvailability() {
-      return hasRequiredFields(['booked', 'date']) &&
-             hasOnlyAllowedFields(['booked', 'date']) &&
-             request.resource.data.booked == true &&
-             request.resource.data.date is string;
+    function validCancellation(token) {
+      let d = request.resource.data;
+      let b = getAfter(/databases/$(database)/documents/bookings/$(d.slotKey)).data;
+      return tokenValid(token) && d.keys().hasAll(['slotKey','bookingDate','bookingTime','firstName','lastName','email','occasion']) &&
+        d.keys().hasOnly(['slotKey','bookingDate','bookingTime','firstName','lastName','email','occasion','timeZone']) &&
+        b.cancellationToken == token && b.status in ['pending','confirmed'] &&
+        d.slotKey == b.slotKey && d.bookingDate == b.bookingDate && d.bookingTime == b.bookingTime &&
+        d.firstName == b.firstName && d.lastName == b.lastName && d.email == b.email &&
+        d.occasion == b.get('occasion', '') && d.get('timeZone', '') == b.get('timeZone', '');
     }
-
-    function isValidBooking() {
-      let data = request.resource.data;
-      let allowedFields = [
-        'firstName', 'lastName', 'email', 'phone', 'occasion', 'notes',
-        'bookingDate', 'bookingTime', 'slotKey', 'status', 'createdAt'
-      ];
-      return hasRequiredFields([
-        'firstName', 'lastName', 'email', 'phone', 
-        'bookingDate', 'bookingTime', 'slotKey', 'status', 'createdAt'
-      ]) &&
-      hasOnlyAllowedFields(allowedFields) &&
-      data.firstName is string && data.firstName.size() > 0 && data.firstName.size() < 100 &&
-      data.lastName is string && data.lastName.size() > 0 && data.lastName.size() < 100 &&
-      isValidEmail(data.email) &&
-      data.phone is string && data.phone.size() > 5 && data.phone.size() < 25 &&
-      data.bookingDate is string &&
-      data.bookingTime is string &&
-      data.slotKey is string &&
-      data.status == 'pending' &&
-      data.createdAt is timestamp &&
-      (!('occasion' in data) || (data.occasion is string && data.occasion.size() < 200)) &&
-      (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    function validBookingUpdate(slotKey) {
+      let d = request.resource.data;
+      return d.diff(resource.data).affectedKeys().hasOnly(['status','cancellationToken']) &&
+        ((resource.data.status == 'pending' && d.status in ['pending','confirmed','denied']) || d.status == resource.data.status) &&
+        (!('cancellationToken' in resource.data) || d.cancellationToken == resource.data.cancellationToken) &&
+        (d.status == 'denied' ?
+          (!existsAfter(/databases/$(database)/documents/availability/$(slotKey)) &&
+            (!('cancellationToken' in d) || !existsAfter(/databases/$(database)/documents/bookingCancellations/$(d.cancellationToken)))) :
+          (tokenValid(d.cancellationToken) &&
+            getAfter(/databases/$(database)/documents/availability/$(slotKey)).data.date == d.bookingDate &&
+            getAfter(/databases/$(database)/documents/bookingCancellations/$(d.cancellationToken)).data.slotKey == slotKey));
     }
-
-    // ===============================================================
-    // Collection Rules
-    // ===============================================================
-
-    match /galleries/{slug} {
-      allow get, list: if true;
-      allow write: if isAuthenticated();
+    function validGalleryDesign(d) {
+      return d.name is string && d.name.size() > 0 && d.name.size() < 100 &&
+        d.photos is list && d.photos.size() <= 500 &&
+        d.get('coverStyle', 'fullbleed') in ['fullbleed','novel','frame','stripe','vintage','minimal'] &&
+        d.get('coverHeight', 'medium') in ['short','medium','tall','fullscreen'] &&
+        (d.get('coverPhotoId', null) == null || (d.coverPhotoId is string && d.coverPhotoId.size() <= 250)) &&
+        d.get('overlayOpacity', 0.45) is number && d.get('overlayOpacity', 0.45) >= 0 && d.get('overlayOpacity', 0.45) <= 1 &&
+        d.get('titleFont', 'Cormorant Garamond') in ['Cormorant Garamond','Playfair Display','DM Serif Display','Josefin Sans','Outfit','Raleway'] &&
+        d.get('titleSize', 'lg') in ['sm','lg','xl','xxl'] &&
+        d.get('titleWeight', '300') in ['200','300','400','500','600','700'] &&
+        d.get('titleSpacing', 0.05) is number && d.get('titleSpacing', 0.05) >= -0.1 && d.get('titleSpacing', 0.05) <= 1 &&
+        d.get('layout', 'masonry') in ['masonry','grid','rows','compact'] &&
+        d.get('gridGap', 'sm') in ['none','xs','sm','md','lg','xl'] &&
+        d.get('gridCols', 3) is int && d.get('gridCols', 3) >= 1 && d.get('gridCols', 3) <= 6;
     }
-
+    match /bookings/{slotKey} {
+      allow read: if isAdmin();
+      allow update: if isAdmin() && validBookingUpdate(slotKey);
+      allow delete: if adminDeletedTogether(slotKey) || cancelledTogether(slotKey);
+    }
     match /availability/{slotKey} {
-      // Required for availability checks in useEffect and transactions
-      allow get: if true;
-      // Required to fetch all taken slots for a specific day to filter the UI
-      allow list: if true;
-      // Mark a slot as taken (create only, updates not allowed for public)
-      allow create: if isValidAvailability();
-      allow update, delete: if isAuthenticated();
+      allow get, list: if true;
+      allow delete: if cancelledTogether(slotKey) || (isAdmin() &&
+        (!existsAfter(/databases/$(database)/documents/bookings/$(slotKey)) ||
+          getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.status == 'denied'));
     }
-
-    match /bookings/{bookingId} {
-      // Strict PII protection: only admin can read client details
-      allow read: if isAuthenticated();
-      // Public can create a booking through the transaction
-      allow create: if isValidBooking();
-      allow update, delete: if isAuthenticated();
+    match /bookingCancellations/{token} {
+      allow get: if tokenValid(token);
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() && validCancellation(token);
+      allow delete: if (isAdmin() &&
+        (!existsAfter(/databases/$(database)/documents/bookings/$(resource.data.slotKey)) ||
+          getAfter(/databases/$(database)/documents/bookings/$(resource.data.slotKey)).data.status == 'denied')) ||
+        (get(/databases/$(database)/documents/bookings/$(resource.data.slotKey)).data.cancellationToken == token && cancelledTogether(resource.data.slotKey));
     }
+    match /galleries/{slug} {
+      allow read: if isAdmin();
+      allow update: if isAdmin() && validGalleryDesign(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','coverStyle','coverHeight','coverPhotoId','overlayOpacity',
+          'titleFont','titleSize','titleWeight','titleSpacing','layout','gridGap','gridCols']);
+    }
+    match /bookingHistory/{id} { allow read: if isAdmin(); }
+    // All other documents, including password verifiers and rate counters, are
+    // inaccessible through client SDKs. Only trusted server code writes them.
   }
 }

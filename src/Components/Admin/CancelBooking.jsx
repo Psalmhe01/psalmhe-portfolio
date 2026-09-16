@@ -1,14 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import emailjs from "@emailjs/browser";
-import { renderToStaticMarkup } from "react-dom/server";
-import { doc, getDoc, deleteDoc } from "firebase/firestore";
-import { db } from "../../firebase";
+import { sendCancellationEmails } from "./sendCancellationEmails";
+import { getCancellation, cancelWithToken } from "../../bookingAccess";
 import { notifications } from "@mantine/notifications";
-import {
-  CancellationConfirmationEmail,
-  AdminCancellationNoticeEmail,
-} from "./EmailTemplates";
 import {
   Container,
   Paper,
@@ -32,86 +26,28 @@ export default function CancelBooking() {
   const [cancelled, setCancelled] = useState(false);
 
   useEffect(() => {
-    async function fetchBooking() {
-      if (!id) return;
-      try {
-        const bookingRef = doc(db, "bookings", id);
-        const snap = await getDoc(bookingRef);
-        if (snap.exists()) {
-          setBooking(snap.data());
-        } else {
-          setError(
-            "This booking request could not be found. It may have already been cancelled or processed.",
-          );
-        }
-      } catch (err) {
-        console.error("Error fetching booking:", err);
-        setError("An error occurred while fetching the booking details.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchBooking();
+    let active = true;
+    setLoading(true);
+    setError(null);
+    getCancellation(id)
+      .then((details) => { if (active) setBooking(details); })
+      .catch((err) => { if (active) setError(err.code ? "Unable to load this cancellation link. Please try again or contact the photographer." : err.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [id]);
 
   const handleCancel = async () => {
-    if (!id) return;
+    if (cancelling) return;
     setCancelling(true);
     try {
-      // 1. Delete from both collections to free up the slot immediately
-      await deleteDoc(doc(db, "availability", id));
-      await deleteDoc(doc(db, "bookings", id));
-
+      const cancelledBooking = await cancelWithToken(id);
+      void sendCancellationEmails(cancelledBooking);
       setCancelled(true);
-
-      // 2. Notify photographer and client via email (Non-blocking)
-      if (booking) {
-        try {
-          const adminEmailHtml = renderToStaticMarkup(
-            <AdminCancellationNoticeEmail {...booking} />,
-          );
-          const clientEmailHtml = renderToStaticMarkup(
-            <CancellationConfirmationEmail {...booking} />,
-          );
-
-          // Send notification to Admin
-          await emailjs.send(
-            import.meta.env.VITE_EMAILJS_SERVICE_ID,
-            import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-            {
-              client_name: `${booking.firstName} ${booking.lastName}`,
-              // This parameter must be the Admin's email to ensure the notice reaches you.
-              // The client's email is still visible inside the adminEmailHtml.
-              client_email: "psalmhe@gmail.com",
-              message_html: adminEmailHtml,
-            },
-            import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
-          );
-
-          // Send confirmation to Client
-          await emailjs.send(
-            import.meta.env.VITE_EMAILJS_SERVICE_ID,
-            import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-            {
-              client_name: booking.firstName,
-              client_email: booking.email,
-              message_html: clientEmailHtml,
-            },
-            import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
-          );
-        } catch (emailErr) {
-          console.error("Email notification error:", emailErr);
-          // Cancellation succeeded in DB, so we don't interrupt the user's view
-        }
-      }
-    } catch (err) {
-      console.error("Cancellation Error:", err);
+    } catch {
       notifications.show({
         title: "Cancellation Failed",
-        message:
-          "We couldn't process your cancellation. This is usually due to permission settings or the booking having already been processed.",
+        message: "We couldn't cancel your appointment. Please try again or contact the photographer.",
         color: "red",
-        radius: 0,
       });
     } finally {
       setCancelling(false);
@@ -142,7 +78,7 @@ export default function CancelBooking() {
           </Stack>
         ) : error ? (
           <Stack align="center" ta="center" gap="lg">
-            <Alert color="red" title="Booking Not Found" radius={0} w="100%">
+            <Alert color="red" title="Cancellation Link Unavailable" radius={0} w="100%">
               {error}
             </Alert>
             <Button variant="default" onClick={() => navigate("/")} radius={0}>
@@ -167,12 +103,7 @@ export default function CancelBooking() {
               <Text fw={600} size="lg" mt="xs">
                 {booking.bookingDate} at {booking.bookingTime}
               </Text>
-              <Text size="sm">
-                Client: {booking.firstName} {booking.lastName}
-              </Text>
-              {booking.occasion && (
-                <Text size="sm">Occasion: {booking.occasion}</Text>
-              )}
+
             </Paper>
 
             <Stack gap="sm">

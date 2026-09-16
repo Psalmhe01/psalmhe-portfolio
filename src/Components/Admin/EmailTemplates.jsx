@@ -186,11 +186,12 @@ const EmailWrapper = ({ children }) => (
 );
 
 export const ConfirmationEmail = ({
-  id,
+  cancellationToken,
   firstName,
   lastName,
   bookingDate,
   bookingTime,
+  timeZone = "America/Chicago",
   occasion,
 }) => (
   <EmailWrapper>
@@ -230,7 +231,7 @@ export const ConfirmationEmail = ({
       <div style={styles.detailsBlock}>
         {[
           ["Date", bookingDate],
-          ["Time", bookingTime],
+          ["Time", `${bookingTime} (${timeZone})`],
           ["Occasion", occasion || "Photography Session"],
           ["Name", `${firstName} ${lastName}`],
         ].map(([label, value], i, arr) => (
@@ -279,7 +280,7 @@ export const ConfirmationEmail = ({
         Need to change your plans?
       </p>
       <a
-        href={`https://psalmhe-portfolio.vercel.app/cancel-booking/${encodeURIComponent(id)}`}
+        href={`${import.meta.env.VITE_SITE_URL || window.location.origin}/cancel-booking/${cancellationToken}`}
         className="text-dark"
         style={{ ...styles.cta, background: "transparent", color: "#111111", border: "1px solid #111111", marginTop: "0" }}
       >
@@ -293,6 +294,7 @@ export const CancellationConfirmationEmail = ({
   firstName,
   bookingDate,
   bookingTime,
+  timeZone = "America/Chicago",
 }) => (
   <EmailWrapper>
     <div
@@ -324,7 +326,7 @@ export const CancellationConfirmationEmail = ({
         className="text-muted"
         style={{ lineHeight: "1.7", margin: "20px 0", color: "#444444" }}
       >
-        This email confirms that your session for <strong>{bookingDate}</strong> at <strong>{bookingTime}</strong> has been cancelled.
+        This email confirms that your session for <strong>{bookingDate}</strong> at <strong>{bookingTime} ({timeZone})</strong> has been cancelled.
       </p>
 
       <p
@@ -350,6 +352,7 @@ export const AdminCancellationNoticeEmail = ({
   email,
   bookingDate,
   bookingTime,
+  timeZone = "America/Chicago",
   occasion,
 }) => (
   <EmailWrapper>
@@ -377,7 +380,7 @@ export const AdminCancellationNoticeEmail = ({
           ["Client", `${firstName} ${lastName}`],
           ["Email", email],
           ["Date", bookingDate],
-          ["Time", bookingTime],
+          ["Time", `${bookingTime} (${timeZone})`],
           ["Occasion", occasion || "—"],
         ].map(([label, value], i, arr) => (
           <div
@@ -407,7 +410,7 @@ export const AdminCancellationNoticeEmail = ({
   </EmailWrapper>
 );
 
-export const DenialEmail = ({ firstName, bookingDate, bookingTime }) => (
+export const DenialEmail = ({ firstName, bookingDate, bookingTime, timeZone = "America/Chicago" }) => (
   <EmailWrapper>
     <div
       className="email-header keep-white"
@@ -445,7 +448,7 @@ export const DenialEmail = ({ firstName, bookingDate, bookingTime }) => (
       <div style={styles.detailsBlock}>
         {[
           ["Requested Date", bookingDate],
-          ["Requested Time", bookingTime],
+          ["Requested Time", `${bookingTime} (${timeZone})`],
         ].map(([label, value]) => (
           <div key={label} className="keep-white" style={styles.row}>
             <span className="text-label" style={styles.label}>

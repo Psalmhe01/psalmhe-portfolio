@@ -27,3 +27,20 @@ shh-key
 shh-key.pub
 *.pem
 *.key
+
+# Local Firebase diagnostics and audit scratch files
+/firebase-debug.log
+/firestore-debug.log
+/ui-debug.log
+/npm-audit.local.json
+
+/functions/node_modules/
+/functions/.env*
+/functions/.secret*
+
+/*.local.log
+/functions/test-output.log
+
+# Build verification output
+/.validation-dist/
+/functions/*.local.log

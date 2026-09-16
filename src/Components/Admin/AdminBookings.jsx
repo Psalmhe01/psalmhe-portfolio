@@ -7,14 +7,14 @@ import { ConfirmationEmail, DenialEmail } from "./EmailTemplates";
 import {
   collection,
   getDocs,
-  updateDoc,
-  deleteDoc,
+  runTransaction,
   doc,
   query,
   orderBy,
 } from "firebase/firestore";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
+import { createCancellationToken, cancellationDetails } from "../../bookingAccess";
 import { db } from "../../firebase";
 
 import {
@@ -45,6 +45,7 @@ function AdminBookings() {
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [opened, { open, close }] = useDisclosure(false);
@@ -79,55 +80,68 @@ function AdminBookings() {
   }, [user, navigate]);
 
   const handleStatusUpdate = async (booking, newStatus) => {
-    const bookingRef = doc(db, "bookings", booking.id);
-    const availabilityRef = doc(db, "availability", booking.id);
-
+    if (busyId) return;
+    setBusyId(booking.id);
+    let emailBooking;
     try {
-      // 1. Update status in Firestore
-      await updateDoc(bookingRef, { status: newStatus });
+      emailBooking = await runTransaction(db, async (transaction) => {
+        const ref = doc(db, "bookings", booking.id);
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists()) throw new Error("This booking no longer exists.");
+        const current = { id: snapshot.id, ...snapshot.data() };
+        if (current.createdAt?.toMillis() !== booking.createdAt?.toMillis()) {
+          throw new Error("This slot now belongs to a newer booking. Refresh the list.");
+        }
+        if (current.status !== "pending" && current.status !== newStatus) {
+          throw new Error("This booking has changed. Refresh and try again.");
+        }
+        const token = current.cancellationToken || createCancellationToken();
+        if (newStatus === "confirmed") {
+          transaction.set(doc(db, "bookingCancellations", token), cancellationDetails(current));
+          transaction.update(ref, { status: newStatus, cancellationToken: token });
+        } else {
+          transaction.update(ref, { status: newStatus });
+          transaction.delete(doc(db, "availability", current.slotKey));
+          if (current.cancellationToken) transaction.delete(doc(db, "bookingCancellations", current.cancellationToken));
+        }
+        return { ...current, cancellationToken: token };
+      });
+    } catch (err) {
+      notifications.show({ title: "Update Failed", message: err.message, color: "red" });
+      setBusyId(null);
+      return;
+    }
 
-      // 2. If denied, delete the availability document to free the slot for others
-      if (newStatus === "denied") {
-        await deleteDoc(availabilityRef);
-      }
-
-      // 3. Trigger Email via EmailJS
-      const emailHtml =
-        newStatus === "confirmed"
-          ? renderToStaticMarkup(<ConfirmationEmail {...booking} />)
-          : renderToStaticMarkup(<DenialEmail {...booking} />);
-
-      const templateParams = {
-        client_name: `${booking.firstName} ${booking.lastName}`,
-        client_email: booking.email,
-        status: newStatus.toUpperCase(),
-        date: booking.bookingDate,
-        time: booking.bookingTime,
-        // This 'message_html' variable must be used in your EmailJS template as {{{message_html}}}
-        message_html: emailHtml,
-      };
-
+    // Save succeeded. Email failure must offer a resend, not repeat the mutation.
+    try {
+      const emailHtml = newStatus === "confirmed"
+        ? renderToStaticMarkup(<ConfirmationEmail {...emailBooking} />)
+        : renderToStaticMarkup(<DenialEmail {...emailBooking} />);
       await emailjs.send(
         import.meta.env.VITE_EMAILJS_SERVICE_ID,
         import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-        templateParams,
+        {
+          client_name: `${emailBooking.firstName} ${emailBooking.lastName}`,
+          client_email: emailBooking.email,
+          status: newStatus.toUpperCase(),
+          date: emailBooking.bookingDate,
+          time: emailBooking.bookingTime,
+          message_html: emailHtml,
+        },
         import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
       );
-
-      // Refresh the local data
+      notifications.show({ message: "Booking updated and email sent.", color: "green" });
+    } catch {
+      notifications.show({ title: "Booking Saved", message: "The email could not be sent. Use Resend Email to retry.", color: "yellow" });
+    } finally {
       await fetchBookings();
       if (selectedBooking?.id === booking.id) close();
-    } catch (err) {
-      console.error("Error updating status:", err);
-      notifications.show({
-        title: "Action Failed",
-        message: "Error processing status update. Please try again.",
-        color: "red",
-      });
+      setBusyId(null);
     }
   };
 
-  const handleDeleteBooking = (bookingId) => {
+  const handleDeleteBooking = (booking) => {
+    const bookingId = booking.id;
     modals.openConfirmModal({
       title: "Confirm Cancellation",
       centered: true,
@@ -144,8 +158,19 @@ function AdminBookings() {
       cancelProps: { radius: 0 },
       onConfirm: async () => {
         try {
-          await deleteDoc(doc(db, "bookings", bookingId));
-          await deleteDoc(doc(db, "availability", bookingId));
+          await runTransaction(db, async (transaction) => {
+            const ref = doc(db, "bookings", bookingId);
+            const snapshot = await transaction.get(ref);
+            if (!snapshot.exists()) return;
+            const current = snapshot.data();
+            if (current.createdAt?.toMillis() !== booking.createdAt?.toMillis()) {
+              throw new Error("This slot now belongs to a newer booking. Refresh the list.");
+            }
+            transaction.delete(ref);
+            // A denied record has already released its slot.
+            if (current.status !== "denied") transaction.delete(doc(db, "availability", current.slotKey));
+            if (current.cancellationToken) transaction.delete(doc(db, "bookingCancellations", current.cancellationToken));
+          });
           await fetchBookings();
           if (selectedBooking?.id === bookingId) close();
           notifications.show({
@@ -257,15 +282,23 @@ function AdminBookings() {
                         <Group gap="xs">
                           <Button
                             size="compact-xs"
+                            disabled={busyId !== null}
                             variant="subtle"
                             onClick={() => viewDetails(booking)}
                           >
                             Details
                           </Button>
+                          {booking.status !== "pending" && (
+                            <Button size="compact-xs" disabled={busyId !== null}
+                              onClick={() => handleStatusUpdate(booking, booking.status)}>
+                              Resend Email
+                            </Button>
+                          )}
                           {booking.status === "pending" && (
                             <>
                               <Button
                                 size="compact-xs"
+                            disabled={busyId !== null}
                                 color="teal"
                                 onClick={() =>
                                   handleStatusUpdate(booking, "confirmed")
@@ -275,6 +308,7 @@ function AdminBookings() {
                               </Button>
                               <Button
                                 size="compact-xs"
+                            disabled={busyId !== null}
                                 color="red"
                                 variant="subtle"
                                 onClick={() =>
@@ -287,9 +321,10 @@ function AdminBookings() {
                           )}
                           <Button
                             size="compact-xs"
+                            disabled={busyId !== null}
                             color="gray"
                             variant="subtle"
-                            onClick={() => handleDeleteBooking(booking.id)}
+                            onClick={() => handleDeleteBooking(booking)}
                           >
                             Delete
                           </Button>
@@ -368,6 +403,7 @@ function AdminBookings() {
                     <Button
                       color="red"
                       variant="light"
+                      disabled={busyId !== null}
                       onClick={() =>
                         handleStatusUpdate(selectedBooking, "denied")
                       }
@@ -376,6 +412,7 @@ function AdminBookings() {
                     </Button>
                     <Button
                       color="teal"
+                      disabled={busyId !== null}
                       onClick={() =>
                         handleStatusUpdate(selectedBooking, "confirmed")
                       }
@@ -387,7 +424,7 @@ function AdminBookings() {
                 <Button
                   color="red"
                   variant="subtle"
-                  onClick={() => handleDeleteBooking(selectedBooking.id)}
+                  onClick={() => handleDeleteBooking(selectedBooking)}
                 >
                   Delete Record
                 </Button>

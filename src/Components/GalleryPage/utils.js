@@ -1,10 +1,10 @@
-import JSZip from "jszip";
 import { notifications } from "@mantine/notifications";
 
 /**
  * Load Google Font into the document
  */
 export function loadGoogleFont(family) {
+  if (!family) return;
   const id = `gf-${family.replace(/\s+/g, "-")}`;
   if (!family || document.getElementById(id)) return;
   const link = document.createElement("link");
@@ -19,7 +19,8 @@ export function loadGoogleFont(family) {
  */
 export async function downloadSinglePhoto(photo) {
   try {
-    const res = await fetch(photo.url);
+    const res = await fetch(photo.downloadUrl || photo.url);
+    if (!res.ok) throw new Error("Photo unavailable");
     const blob = await res.blob();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -43,6 +44,7 @@ export async function downloadAllPhotosAsZip(galleryName, photos) {
     return;
   }
 
+  const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   let successCount = 0;
   let failCount = 0;
@@ -53,7 +55,8 @@ export async function downloadAllPhotosAsZip(galleryName, photos) {
   for (let i = 0; i < photos.length; i++) {
     try {
       const photo = photos[i];
-      const response = await fetch(photo.url);
+      const response = await fetch(photo.downloadUrl || photo.url);
+      if (!response.ok) throw new Error("Photo unavailable");
       const blob = await response.blob();
 
       // Get file extension from filename or URL
@@ -63,12 +66,17 @@ export async function downloadAllPhotosAsZip(galleryName, photos) {
         filename += ".jpg";
       }
 
-      folder.file(filename, blob);
+      folder.file(`${i + 1}-${filename.replace(/[\\/]/g, "_")}`, blob);
       successCount++;
     } catch (err) {
       console.error(`Failed to download photo ${i + 1}:`, err);
       failCount++;
     }
+  }
+
+  if (successCount === 0) {
+    notifications.show({ message: "No photos could be downloaded. Please try again.", color: "red" });
+    return;
   }
 
   try {

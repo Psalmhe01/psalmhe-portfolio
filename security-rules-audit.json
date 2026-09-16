@@ -1,0 +1,24 @@
+{
+  "score": 4,
+  "summary": "Local rules deny public gallery reads and direct booking creation. Server validators, App Check, rate limits, private password records, authenticated uploads, and atomic cancellation are implemented. Production configuration, media migration, and provider smoke tests remain required.",
+  "findings": [
+    {
+      "check": "Existing-media migration",
+      "severity": "major",
+      "issue": "Previously public Cloudinary assets remain exposed until migration and CDN invalidation complete; the new client backend fails closed for legacy photos.",
+      "recommendation": "Review and apply per-gallery migration, separate shared portfolio assets, rotate old passwords, and verify former public URLs."
+    },
+    {
+      "check": "Deployment and authority",
+      "severity": "minor",
+      "issue": "Live admin identity, App Check, backend secrets, timezone, and media-provider behavior need verification.",
+      "recommendation": "Follow PROJECT_REVIEW.md, deploy backend/rules/frontend together, and perform the signed-out smoke tests."
+    },
+    {
+      "check": "Abuse and retention",
+      "severity": "minor",
+      "issue": "IP-based limits do not stop all distributed abuse; expired counters and receipts need TTL cleanup.",
+      "recommendation": "Enable expiresAt TTL, monitor errors and usage, and tune limits."
+    }
+  ]
+}

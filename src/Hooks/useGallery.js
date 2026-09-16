@@ -1,156 +1,105 @@
-// src/hooks/useGallery.js
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { db } from "../firebase";
-import {
-  doc,
-  getDoc,
-  collection,
-  getDocs,
-  setDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-} from "firebase/firestore";
+import { doc, collection, onSnapshot, updateDoc } from "firebase/firestore";
+import { callBackend } from "../backend";
 
-// Slugify a gallery name
 export function slugify(str) {
-  return str
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return str.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+const needsMigration = (gallery) => (gallery.photos || []).some((photo) => photo.deliveryType !== "authenticated" || !photo.assetId);
+async function adminGallery(snapshot) {
+  const raw = { id: snapshot.id, ...snapshot.data() };
+  // Only an authenticated admin can read this snapshot. Legacy previews remain
+  // available to the photographer while client access fails closed.
+  if (needsMigration(raw)) return { ...raw, needsMigration: true };
+  return { ...raw, ...await callBackend("openGallery", { slug: snapshot.id }) };
 }
 
-// Hash a password (simple SHA-256 via Web Crypto)
-export async function hashPassword(password) {
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// Fetch a gallery by slug (public)
-export function useGallery(slug) {
+export function useGallery(slug, admin = false) {
   const [gallery, setGallery] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(admin);
   const [error, setError] = useState(null);
-
-  const fetchGallery = useCallback(() => {
-    if (!slug) return;
-    setLoading(true);
-    const ref = doc(db, "galleries", slug);
-    getDoc(ref)
-      .then((snap) => {
-        if (snap.exists()) {
-          setGallery({ id: snap.id, ...snap.data() });
-        } else {
-          setError("Gallery not found.");
-        }
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [slug]);
-
   useEffect(() => {
-    fetchGallery();
-  }, [fetchGallery]);
-
-  const updateGalleryFn = async (gallerySlug, updates) => {
-    await updateGallery(gallerySlug, updates);
-    setGallery((prev) => (prev ? { ...prev, ...updates } : null));
-  };
-
-  const deletePhotoFn = async (gallerySlug, publicId) => {
-    await deletePhotoFromGallery(gallerySlug, publicId);
-    setGallery((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        photos: prev.photos.filter((p) => p.publicId !== publicId),
-      };
-    });
-  };
-
+    setGallery(null);
+    setError(null);
+    setLoading(admin);
+    if (!admin || !slug) return;
+    let version = 0;
+    const unsubscribe = onSnapshot(doc(db, "galleries", slug), async (snapshot) => {
+      const current = ++version;
+      try {
+        if (!snapshot.exists()) throw new Error("Gallery not found.");
+        const result = await adminGallery(snapshot);
+        if (current === version) setGallery(result);
+      } catch (err) {
+        if (current === version) setError(err.message || "Unable to load gallery.");
+      } finally {
+        if (current === version) setLoading(false);
+      }
+    }, () => { setError("Unable to load gallery."); setLoading(false); });
+    return () => { version++; unsubscribe(); };
+  }, [slug, admin]);
+  useEffect(() => {
+    if (!gallery?.expiresAt) return;
+    let active = true;
+    const timer = setTimeout(async () => {
+      if (!admin) { setGallery(null); return; }
+      try {
+        const refreshed = await callBackend("openGallery", { slug });
+        if (active) setGallery(refreshed);
+      } catch { if (active) setError("Gallery access expired. Please refresh."); }
+    }, Math.max(0, gallery.expiresAt - Date.now() - (admin ? 60000 : 0)));
+    return () => { active = false; clearTimeout(timer); };
+  }, [gallery?.expiresAt, admin, slug]);
   return {
-    gallery,
-    loading,
-    error,
-    updateGallery: updateGalleryFn,
-    deletePhoto: deletePhotoFn,
+    gallery, loading, error,
+    unlock: async (password) => {
+      const result = await callBackend("openGallery", { slug, password });
+      setGallery(result);
+    },
+    updateGallery,
+    deletePhoto: deletePhotoFromGallery,
   };
 }
 
-// Fetch all galleries (admin only)
 export function useAllGalleries() {
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setRefresh((count) => count + 1), 12 * 60000);
+    return () => clearInterval(timer);
+  }, []);
   const [galleries, setGalleries] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [error, setError] = useState(null);
   useEffect(() => {
-    getDocs(collection(db, "galleries"))
-      .then((snap) => {
-        setGalleries(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { galleries, loading, refetch: () => {} };
+    let version = 0;
+    const unsubscribe = onSnapshot(collection(db, "galleries"), async (snapshot) => {
+      const current = ++version;
+      try {
+        const results = await Promise.all(snapshot.docs.map(adminGallery));
+        if (current === version) { setGalleries(results); setError(null); }
+      } catch {
+        if (current === version) setError("Unable to load galleries. Please refresh and try again.");
+      } finally {
+        if (current === version) setLoading(false);
+      }
+    }, () => { setError("Unable to load galleries."); setLoading(false); });
+    return () => { version++; unsubscribe(); };
+  }, [refresh]);
+  return { galleries, loading, error };
 }
 
-// Create a new gallery
 export async function createGallery({ name, clientEmail, password }) {
   const slug = slugify(name);
-  const passwordHash = await hashPassword(password);
-
-  const ref = doc(db, "galleries", slug);
-  const existing = await getDoc(ref);
-  if (existing.exists()) {
-    throw new Error(`A gallery with slug "${slug}" already exists.`);
-  }
-
-  await setDoc(ref, {
-    name,
-    slug,
-    clientEmail: clientEmail || "",
-    passwordHash,
-    photos: [],
-    layout: "masonry",
-    createdAt: serverTimestamp(),
-  });
-
+  await callBackend("createGallery", { name, clientEmail, password, slug });
   return slug;
 }
-
 export async function updateGallery(slug, updates) {
-  const ref = doc(db, "galleries", slug);
-  await updateDoc(ref, updates);
+  await updateDoc(doc(db, "galleries", slug), updates);
 }
-
-// Add photos to a gallery
-export async function addPhotosToGallery(slug, newPhotos) {
-  const ref = doc(db, "galleries", slug);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error("Gallery not found");
-
-  const existing = snap.data().photos || [];
-  await updateDoc(ref, {
-    photos: [...existing, ...newPhotos],
-  });
-}
-
-// Delete a photo from a gallery
 export async function deletePhotoFromGallery(slug, publicId) {
-  const ref = doc(db, "galleries", slug);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) throw new Error("Gallery not found");
-
-  const existingPhotos = snap.data().photos || [];
-  const photos = existingPhotos.filter((p) => p.publicId !== publicId);
-  await updateDoc(ref, { photos });
+  await callBackend("deleteGalleryPhoto", { slug, publicId });
 }
-
-// Delete entire gallery
 export async function deleteGallery(slug) {
-  await deleteDoc(doc(db, "galleries", slug));
+  await callBackend("deleteGallery", { slug });
 }

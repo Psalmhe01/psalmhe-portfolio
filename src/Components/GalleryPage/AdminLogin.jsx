@@ -26,8 +26,8 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       await login(email, password);
-    } catch {
-      setError("Invalid email or password.");
+    } catch (err) {
+      setError(err.code ? "Invalid email or password." : err.message);
     } finally {
       setLoading(false);
     }

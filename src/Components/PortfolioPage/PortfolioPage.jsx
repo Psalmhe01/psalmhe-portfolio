@@ -12,7 +12,6 @@ import {
   Image,
   Stack,
   Card,
-  AspectRatio,
 } from "@mantine/core";
 
 function PortfolioPage() {
@@ -46,10 +45,9 @@ function PortfolioPage() {
           spacing="xl"
           style={{ justifyItems: "center" }}
         >
-          {Images.map((item, i) => (
-            <ScrollReveal>
+          {Images.map((item) => (
+            <ScrollReveal key={item.title}>
               <Card
-               key={i}
                 component={Link}
                 to={`/portfolio/${item.title}`}
                 padding={0}
@@ -59,6 +57,7 @@ function PortfolioPage() {
                 <Image
                   src={item.image}
                   alt={item.title}
+                  loading="lazy"
                   fit="cover"
                   className="portfolio-image"
                 />

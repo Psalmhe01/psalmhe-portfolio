@@ -1,3 +1,4 @@
+import { callBackend } from "../../backend";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../Context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
@@ -45,7 +46,7 @@ import GalleryEditorDrawer from "./components/GalleryEditorDrawer";
 export default function AdminGalleries() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { galleries, loading } = useAllGalleries();
+  const { galleries, loading, error } = useAllGalleries();
 
   const [createOpened, { open: openCreate, close: closeCreate }] =
     useDisclosure(false);
@@ -55,6 +56,21 @@ export default function AdminGalleries() {
   const [activeUpload, setActiveUpload] = useState(null);
   const [copiedSlug, setCopiedSlug] = useState("");
   const [editingGallery, setEditingGallery] = useState(null);
+  const [passwordGallery, setPasswordGallery] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const changePassword = async () => {
+    if (passwordSaving) return;
+    setPasswordSaving(true);
+    try {
+      await callBackend("setGalleryPassword", { slug: passwordGallery.slug, password: newPassword });
+      setPasswordGallery(null);
+      setNewPassword("");
+      notifications.show({ message: "Password updated. Previously issued photo links expire within 15 minutes.", color: "green" });
+    } catch (err) {
+      notifications.show({ message: err.message, color: "red" });
+    } finally { setPasswordSaving(false); }
+  };
 
   useEffect(() => {
     if (user === null) {
@@ -78,7 +94,7 @@ export default function AdminGalleries() {
         color: "green",
         icon: <IconCheck size={16} />,
       });
-      window.location.reload();
+
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -109,9 +125,13 @@ export default function AdminGalleries() {
       labels: { confirm: "Delete", cancel: "Cancel" },
       confirmProps: { color: "red" },
       onConfirm: async () => {
-        await deleteGallery(slug);
-        notifications.show({ message: "Gallery deleted.", color: "red" });
-        window.location.reload();
+        try {
+          await deleteGallery(slug);
+          notifications.show({ message: "Gallery deleted.", color: "red" });
+        } catch {
+          notifications.show({ message: "Could not delete gallery. Please try again.", color: "red" });
+        }
+
       },
     });
   };
@@ -169,6 +189,7 @@ export default function AdminGalleries() {
               </Button>
             </Group>
 
+            {error && <Alert color="red">{error}</Alert>}
             {loading ? (
               <Center h={200}>
                 <Loader size="sm" />
@@ -182,10 +203,10 @@ export default function AdminGalleries() {
             ) : (
               <Stack gap="sm">
                 {galleries.map((g) => (
-                  <Paper 
-                    key={g.id} 
-                    withBorder p="md" 
-                    radius={0} 
+                  <Paper
+                    key={g.id}
+                    withBorder p="md"
+                    radius={0}
                     bg="rgba(255, 255, 255, 0.9)"
                   >
                     <Group
@@ -200,6 +221,7 @@ export default function AdminGalleries() {
                             {g.photos?.length || 0} photos
                           </Badge>
                         </Group>
+                        {g.needsMigration && <Text size="xs" c="red">Privacy migration required before client access</Text>}
                         {g.clientEmail && (
                           <Text size="xs" c="dimmed">
                             {g.clientEmail}
@@ -210,7 +232,8 @@ export default function AdminGalleries() {
                         </Code>
                       </Stack>
 
-                      <Group gap="xs" wrap="nowrap">
+                      <Group gap="xs" wrap="wrap">
+                        <Button size="compact-xs" variant="subtle" onClick={() => { setPasswordGallery(g); setNewPassword(""); }}>Password</Button>
                         <Tooltip label="Edit Design">
                           <ActionIcon
                             variant="light"
@@ -296,6 +319,13 @@ export default function AdminGalleries() {
         </AppShell.Main>
       </AppShell>
 
+      <Modal opened={Boolean(passwordGallery)} onClose={() => setPasswordGallery(null)} title="Change Gallery Password" centered>
+        <Stack>
+          <PasswordInput label="New password" description="Use at least 12 characters. Share it privately with your client."
+            value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} maxLength={128} autoComplete="new-password" />
+          <Button onClick={changePassword} loading={passwordSaving} disabled={newPassword.length < 12}>Update Password</Button>
+        </Stack>
+      </Modal>
       <Modal
         opened={createOpened}
         onClose={closeCreate}
@@ -321,7 +351,10 @@ export default function AdminGalleries() {
           />
           <PasswordInput
             label="Gallery Password"
-            description="The client will use this to access their gallery"
+            minLength={12}
+            maxLength={128}
+            autoComplete="new-password"
+            description="Use at least 12 characters. Share privately with your client."
             placeholder="Choose a password"
             required
             value={form.password}

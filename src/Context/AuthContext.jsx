@@ -1,5 +1,6 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
+import { isAdminUser } from "../adminAccess";
 import { auth } from "../firebase";
 import {
   signInWithEmailAndPassword,
@@ -16,8 +17,14 @@ export function AuthProvider({ children }) {
     return onAuthStateChanged(auth, (u) => setUser(u || null));
   }, []);
 
-  const login = (email, password) =>
-    signInWithEmailAndPassword(auth, email, password);
+  const login = async (email, password) => {
+    const result = await signInWithEmailAndPassword(auth, email.trim(), password);
+    if (!isAdminUser(result.user)) {
+      await signOut(auth);
+      throw new Error("Sign in with the verified photographer admin account.");
+    }
+    return result;
+  };
 
   const logout = () => signOut(auth);
 
