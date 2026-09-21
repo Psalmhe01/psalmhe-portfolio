@@ -1,4 +1,4 @@
-import { callBackend } from "../../backend";
+import { setGalleryPassword } from "../../galleryStore";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../Context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
@@ -63,10 +63,10 @@ export default function AdminGalleries() {
     if (passwordSaving) return;
     setPasswordSaving(true);
     try {
-      await callBackend("setGalleryPassword", { slug: passwordGallery.slug, password: newPassword });
+      await setGalleryPassword(passwordGallery.slug, newPassword);
       setPasswordGallery(null);
       setNewPassword("");
-      notifications.show({ message: "Password updated. Previously issued photo links expire within 15 minutes.", color: "green" });
+      notifications.show({ message: "Password updated. Share the new password privately. Previously saved photos and photo links remain accessible.", color: "green" });
     } catch (err) {
       notifications.show({ message: err.message, color: "red" });
     } finally { setPasswordSaving(false); }
@@ -221,7 +221,7 @@ export default function AdminGalleries() {
                             {g.photos?.length || 0} photos
                           </Badge>
                         </Group>
-                        {g.needsMigration && <Text size="xs" c="red">Privacy migration required before client access</Text>}
+                        {g.needsMigration && <Text size="xs" c="red">Set a new password to enable client access</Text>}
                         {g.clientEmail && (
                           <Text size="xs" c="dimmed">
                             {g.clientEmail}

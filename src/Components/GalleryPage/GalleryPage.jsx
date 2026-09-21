@@ -61,7 +61,7 @@ export default function GalleryPage({ isAdmin = false }) {
       setPasswordInput("");
     } catch (err) {
       setWrongPassword(true);
-      notifications.show({ message: err.code === "functions/internal" ? "Unable to open this gallery. Please try again." : err.message, color: "red" });
+      notifications.show({ message: err.message, color: "red" });
     } finally {
       setChecking(false);
     }
@@ -257,7 +257,7 @@ export default function GalleryPage({ isAdmin = false }) {
 
   return (
     <Box style={{ background: bg, minHeight: "100vh" }}>
-      {isAdmin && gallery.needsMigration && <Text c="red" ta="center" p="md">These photos need a privacy migration before clients can open the gallery.</Text>}
+      {isAdmin && gallery.needsMigration && <Text c="red" ta="center" p="md">Set a new password from Manage Galleries to enable client access.</Text>}
       {/* Cover */}
       <GalleryCover gallery={gallery} isAdmin={isAdmin} />
 

@@ -1,14 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Bookings are created by the validated, App Check-protected server endpoint.
-    // Public availability contains only booked/date. Cancellation tokens are
-    // random bearer capabilities; they never appear in that public collection.
-    // Galleries are admin-only. gallerySecrets, rateLimits and bookingRequests
-    // are server-only; clients receive a sanitized gallery from openGallery.
+    // Spark plan: atomic public reservations, private admin records, encrypted gallery shares.
     function isAdmin() {
       return request.auth != null && request.auth.token.email == 'psalmhe@gmail.com' &&
         request.auth.token.email_verified == true;
+    }
+
+    function bounded(value, minimum, maximum) {
+      return value is string && value.size() >= minimum && value.size() <= maximum;
+    }
+    function scheduledTime(d) {
+      let parts = d.bookingDate.split('-');
+      let year = int(parts[0]);
+      let day = timestamp.date(year, int(parts[1]), int(parts[2]));
+      let march = timestamp.date(year, 3, 1);
+      let november = timestamp.date(year, 11, 1);
+      // 1970-01-01 was Thursday (4), with Sunday represented as zero.
+      let marchSunday = (7 - ((int(march.toMillis() / 86400000) + 4) % 7)) % 7;
+      let novemberSunday = (7 - ((int(november.toMillis() / 86400000) + 4) % 7)) % 7;
+      let daylight = day >= march + duration.value(7 + marchSunday, 'd') &&
+        day < november + duration.value(novemberSunday, 'd');
+      return day + duration.value(int(d.bookingTime.split(':')[0]) + (daylight ? 5 : 6), 'h');
+    }
+
+    function validNewBooking(slotKey) {
+      let d = request.resource.data;
+      return d.keys().hasAll(['firstName','lastName','email','phone','occasion','notes','bookingDate','bookingTime',
+          'slotKey','timeZone','cancellationToken','startsAt','status','createdAt']) &&
+        d.keys().hasOnly(['firstName','lastName','email','phone','occasion','notes','bookingDate','bookingTime',
+          'slotKey','timeZone','cancellationToken','startsAt','status','createdAt']) &&
+        bounded(d.firstName,1,99) && bounded(d.lastName,1,99) && bounded(d.email,3,254) &&
+        d.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$') && bounded(d.phone,6,24) &&
+        bounded(d.occasion,0,199) && bounded(d.notes,0,999) &&
+        d.bookingDate is string && d.bookingDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        d.bookingTime is string && d.bookingTime.matches('^(09|1[0-8]):00$') &&
+        d.timeZone == 'America/Chicago' && slotKey == d.bookingDate + ' ' + d.bookingTime && d.slotKey == slotKey &&
+        tokenValid(d.cancellationToken) && d.status == 'pending' && d.createdAt == request.time &&
+        d.startsAt is timestamp && d.startsAt == scheduledTime(d) &&
+        d.startsAt > request.time && d.startsAt < request.time + duration.value(366,'d') &&
+        !exists(/databases/$(database)/documents/availability/$(slotKey)) &&
+        !exists(/databases/$(database)/documents/bookingReceipts/$(d.cancellationToken)) &&
+        getAfter(/databases/$(database)/documents/availability/$(slotKey)).data == {'booked':true,'date':d.bookingDate} &&
+        getAfter(/databases/$(database)/documents/bookingCancellations/$(d.cancellationToken)).data.slotKey == slotKey &&
+        getAfter(/databases/$(database)/documents/bookingReceipts/$(d.cancellationToken)).data.slotKey == slotKey;
+    }
+    function galleryPublished(slug) {
+      let d = request.resource.data;
+      return !('access' in d) || (d.access is map && d.access.keys().hasOnly(['salt','key']) &&
+        bounded(d.access.salt,24,24) && bounded(d.access.key,44,44) && d.revision is int && d.revision > 0 &&
+        getAfter(/databases/$(database)/documents/galleryShares/$(slug)).data.revision == d.revision &&
+        getAfter(/databases/$(database)/documents/galleryShares/$(slug)).data.salt == d.access.salt);
     }
     function tokenValid(token) {
       return token is string && token.matches('^[a-f0-9]{64}$');
@@ -65,11 +107,16 @@ service cloud.firestore {
     }
     match /bookings/{slotKey} {
       allow read: if isAdmin();
-      allow update: if isAdmin() && validBookingUpdate(slotKey);
+      allow create: if validNewBooking(slotKey);
+      allow update: if (isAdmin() && validBookingUpdate(slotKey)) || (resource.data.status == 'denied' && validNewBooking(slotKey));
       allow delete: if adminDeletedTogether(slotKey) || cancelledTogether(slotKey);
     }
     match /availability/{slotKey} {
       allow get, list: if true;
+      allow create: if request.resource.data.keys().hasOnly(['booked','date']) && request.resource.data.booked == true &&
+        getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.createdAt == request.time &&
+        getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.status == 'pending' &&
+        getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.bookingDate == request.resource.data.date;
       allow delete: if cancelledTogether(slotKey) || (isAdmin() &&
         (!existsAfter(/databases/$(database)/documents/bookings/$(slotKey)) ||
           getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.status == 'denied'));
@@ -77,20 +124,43 @@ service cloud.firestore {
     match /bookingCancellations/{token} {
       allow get: if tokenValid(token);
       allow list: if isAdmin();
-      allow create, update: if isAdmin() && validCancellation(token);
+      allow create: if validCancellation(token) && (isAdmin() ||
+        (!exists(/databases/$(database)/documents/bookingReceipts/$(token)) &&
+         getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.slotKey)).data.createdAt == request.time));
+      allow update: if isAdmin() && validCancellation(token);
       allow delete: if (isAdmin() &&
         (!existsAfter(/databases/$(database)/documents/bookings/$(resource.data.slotKey)) ||
           getAfter(/databases/$(database)/documents/bookings/$(resource.data.slotKey)).data.status == 'denied')) ||
         (get(/databases/$(database)/documents/bookings/$(resource.data.slotKey)).data.cancellationToken == token && cancelledTogether(resource.data.slotKey));
     }
+
+
     match /galleries/{slug} {
       allow read: if isAdmin();
-      allow update: if isAdmin() && validGalleryDesign(request.resource.data) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','coverStyle','coverHeight','coverPhotoId','overlayOpacity',
-          'titleFont','titleSize','titleWeight','titleSpacing','layout','gridGap','gridCols']);
+      allow create, update: if isAdmin() && validGalleryDesign(request.resource.data) && galleryPublished(slug);
+      allow delete: if isAdmin() && !existsAfter(/databases/$(database)/documents/galleryShares/$(slug));
     }
-    match /bookingHistory/{id} { allow read: if isAdmin(); }
-    // All other documents, including password verifiers and rate counters, are
-    // inaccessible through client SDKs. Only trusted server code writes them.
+    match /galleryShares/{slug} {
+      allow get: if slug.matches('^[a-z0-9][a-z0-9-]{0,98}$');
+      allow create, update: if isAdmin() &&
+        request.resource.data.keys().hasAll(['version','salt','iv','ciphertext','revision']) &&
+        request.resource.data.keys().hasOnly(['version','salt','iv','ciphertext','revision']) &&
+        request.resource.data.version == 1 && bounded(request.resource.data.salt,24,24) &&
+        bounded(request.resource.data.iv,16,16) && bounded(request.resource.data.ciphertext,24,800000) &&
+        request.resource.data.revision is int &&
+        getAfter(/databases/$(database)/documents/galleries/$(slug)).data.revision == request.resource.data.revision &&
+        getAfter(/databases/$(database)/documents/galleries/$(slug)).data.access.salt == request.resource.data.salt;
+      allow delete: if isAdmin() && !existsAfter(/databases/$(database)/documents/galleries/$(slug));
+    }
+    match /bookingReceipts/{token} {
+      allow get: if tokenValid(token);
+      allow list: if isAdmin();
+      allow create: if tokenValid(token) && request.resource.data.keys().hasAll(['slotKey','digest','createdAt']) &&
+        request.resource.data.keys().hasOnly(['slotKey','digest','createdAt']) &&
+        tokenValid(request.resource.data.digest) && request.resource.data.createdAt == request.time &&
+        getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.slotKey)).data.createdAt == request.time &&
+        getAfter(/databases/$(database)/documents/bookings/$(request.resource.data.slotKey)).data.cancellationToken == token;
+    }
+    match /bookingHistory/{id} { allow read, create: if isAdmin(); }
   }
 }

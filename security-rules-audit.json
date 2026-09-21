@@ -1,24 +1,24 @@
 {
   "score": 4,
-  "summary": "Local rules deny public gallery reads and direct booking creation. Server validators, App Check, rate limits, private password records, authenticated uploads, and atomic cancellation are implemented. Production configuration, media migration, and provider smoke tests remain required.",
+  "summary": "Spark-only rules protect booking PII/admin keys, validate atomic reservations/cancellations, and restrict public gallery access to encrypted envelopes. Provider-level media privacy and abuse controls remain limited without a backend.",
   "findings": [
     {
-      "check": "Existing-media migration",
+      "check": "Media delivery",
       "severity": "major",
-      "issue": "Previously public Cloudinary assets remain exposed until migration and CDN invalidation complete; the new client backend fails closed for legacy photos.",
-      "recommendation": "Review and apply per-gallery migration, separate shared portfolio assets, rotate old passwords, and verify former public URLs."
+      "issue": "Cloudinary photo URLs remain accessible to their holders; encrypted gallery documents do not revoke media URLs.",
+      "recommendation": "Treat galleries as password-protected link discovery, not authenticated photo storage. Do not claim expiring/private photo delivery."
     },
     {
-      "check": "Deployment and authority",
-      "severity": "minor",
-      "issue": "Live admin identity, App Check, backend secrets, timezone, and media-provider behavior need verification.",
-      "recommendation": "Follow PROJECT_REVIEW.md, deploy backend/rules/frontend together, and perform the signed-out smoke tests."
+      "check": "Abuse prevention",
+      "severity": "moderate",
+      "issue": "Public reservations and public unsigned upload presets do not have trusted per-user/IP rate limits. Encrypted gallery copies can be attacked offline.",
+      "recommendation": "Use high-entropy gallery passwords, provider-side preset restrictions, and monitor free quotas. Consider authenticated client access if stronger controls become necessary."
     },
     {
-      "check": "Abuse and retention",
+      "check": "Retention",
       "severity": "minor",
-      "issue": "IP-based limits do not stop all distributed abuse; expired counters and receipts need TTL cleanup.",
-      "recommendation": "Enable expiresAt TTL, monitor errors and usage, and tune limits."
+      "issue": "Immutable booking receipts and retained Cloudinary assets accumulate.",
+      "recommendation": "Define retention without re-enabling old cancellation tokens or automatically enabling paid TTL."
     }
   ]
 }

@@ -7,7 +7,7 @@ import {
 } from "firebase/firestore";
 import { sendCancellationEmails } from "./Admin/sendCancellationEmails";
 import { createCancellationToken, cancelWithToken } from "../bookingAccess";
-import { callBackend } from "../backend";
+import { createBooking } from "../createBooking";
 import { BOOKING_TIME_ZONE, bookingLocalTime } from "../bookingTime";
 import { db } from "../firebase.js";
 import {
@@ -143,7 +143,7 @@ function Book() {
     setIsSubmitting(true);
 
     try {
-      const result = await callBackend("createBooking", { ...payload, requestId: attempt.current.requestId });
+      const result = await createBooking({ ...payload, requestId: attempt.current.requestId });
 
       // Notification delivery must never turn a saved booking into an apparent failure.
       fetch("https://formspree.io/f/xkgqzeey", {
@@ -178,14 +178,14 @@ function Book() {
       openSuccess();
     } catch (error) {
       console.error("Booking Error:", error);
-      if (!["functions/internal", "functions/unavailable", "functions/deadline-exceeded"].includes(error?.code)) attempt.current = null;
-      if (error?.code === "functions/already-exists") {
+      if (!["internal", "unavailable", "deadline-exceeded", "unknown"].includes(error?.code)) attempt.current = null;
+      if (error?.code === "already-exists") {
         setStatusMessage(
           "That date and time is already booked. Please choose another slot.",
         );
-      } else if (["functions/invalid-argument", "functions/resource-exhausted", "functions/failed-precondition"].includes(error?.code)) {
+      } else if (["invalid-argument", "resource-exhausted", "failed-precondition"].includes(error?.code)) {
         setStatusMessage(error.message);
-      } else if (["permission-denied", "functions/unauthenticated", "functions/permission-denied"].includes(error?.code)) {
+      } else if (["permission-denied", "unauthenticated", "permission-denied"].includes(error?.code)) {
         setStatusMessage(
           "We could not reserve that time. Please refresh and try again, or contact the photographer.",
         );

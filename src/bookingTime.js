@@ -1,4 +1,5 @@
-export const BOOKING_TIME_ZONE = import.meta.env.VITE_BOOKING_TIME_ZONE || "America/Chicago";
+import { BOOKING_TIME_ZONE } from "./bookingSchedule";
+export { BOOKING_TIME_ZONE };
 
 export function bookingLocalTime(date = new Date()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {

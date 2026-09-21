@@ -100,6 +100,7 @@ function AdminBookings() {
           transaction.set(doc(db, "bookingCancellations", token), cancellationDetails(current));
           transaction.update(ref, { status: newStatus, cancellationToken: token });
         } else {
+          if (current.status !== "denied") transaction.set(doc(collection(db, "bookingHistory")), { ...current, status: "denied" });
           transaction.update(ref, { status: newStatus });
           transaction.delete(doc(db, "availability", current.slotKey));
           if (current.cancellationToken) transaction.delete(doc(db, "bookingCancellations", current.cancellationToken));
