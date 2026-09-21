@@ -46,7 +46,13 @@ America/Chicago is confirmed. The Firebase CLI login is psalmhe@gmail.com; the a
 
 ## Validation and deployment status
 
-Security tests and final release checks are in progress. No new free-plan rules have been deployed yet. The previous Functions deployment failed at Firebase's billing prerequisite and did not deploy the backend.
+Final checks on September 20, 2026: all 28 tests passed, including real frontend reservation retries, cancellation, conflicting bookings, password encryption/rotation, and seasonal timezone validation. The final Vite production build passed (main chunk about 834 KB / 264 KB gzip; existing large-chunk warning remains).
+
+The free-plan Firestore rules were successfully deployed to psalmhe-gallery. Live signed-out HTTP checks return 403 for bookings, galleries, and galleryShares collection listing, and 200 for availability. No billing plan was changed and no Functions were deployed.
+
+The live Vercel site still serves an older frontend. Local branch2 is one commit ahead of origin/branch2 at this check (259ea11). The owner will push and ensure the matching production deployment completes. This release guide also has a final status update to commit.
+
+Cloudinary preset inspection returned HTTP 401 using the stored admin API credentials. The unsigned browser upload flow does not use those credentials, but preset restrictions and a real upload remain unverified. Gallery-password publishing, actual email cancellation, and browser download tests remain to be performed after the matching frontend is live.
 
 ## Rules review
 

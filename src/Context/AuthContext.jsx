@@ -1,40 +1,29 @@
-// src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
-import { isAdminUser } from "../adminAccess";
 import { auth } from "../firebase";
+import { createAdminAuth } from "../adminAuth";
 import {
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
+  signInWithEmailAndPassword, signOut, onIdTokenChanged,
+  sendEmailVerification, reload, getIdToken,
 } from "firebase/auth";
 
 const AuthContext = createContext(null);
+const actions = createAdminAuth(auth, {
+  signInWithEmailAndPassword, signOut, sendEmailVerification, reload, getIdToken,
+});
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(undefined); // undefined = loading
-
-  useEffect(() => {
-    return onAuthStateChanged(auth, (u) => setUser(u || null));
-  }, []);
-
-  const login = async (email, password) => {
-    const result = await signInWithEmailAndPassword(auth, email.trim(), password);
-    if (!isAdminUser(result.user)) {
-      await signOut(auth);
-      throw new Error("Sign in with the verified photographer admin account.");
-    }
-    return result;
+  // Firebase mutates its User object during reload. A new state wrapper also
+  // re-renders route guards when the object identity has not changed.
+  const [session, setSession] = useState({ user: undefined });
+  useEffect(() => onIdTokenChanged(auth, user => setSession({ user: user || null })), []);
+  const refreshVerification = async () => {
+    const user = await actions.refreshVerification();
+    setSession({ user });
   };
-
-  const logout = () => signOut(auth);
-
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ ...actions, user: session.user, refreshVerification }}>
       {children}
     </AuthContext.Provider>
   );
 }
-
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export function useAuth() { return useContext(AuthContext); }
