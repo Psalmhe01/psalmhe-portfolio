@@ -321,9 +321,9 @@ export default function AdminGalleries() {
 
       <Modal opened={Boolean(passwordGallery)} onClose={() => setPasswordGallery(null)} title="Change Gallery Password" centered>
         <Stack>
-          <PasswordInput label="New password" description="Use at least 12 characters. Share it privately with your client."
-            value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} maxLength={128} autoComplete="new-password" />
-          <Button onClick={changePassword} loading={passwordSaving} disabled={newPassword.length < 12}>Update Password</Button>
+          <PasswordInput label="New PIN or password" description="Use at least 4 characters; a four-digit PIN is accepted. Share it privately with your client."
+            value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={4} maxLength={128} autoComplete="new-password" />
+          <Button onClick={changePassword} loading={passwordSaving} disabled={newPassword.length < 4}>Update Password</Button>
         </Stack>
       </Modal>
       <Modal
@@ -350,12 +350,12 @@ export default function AdminGalleries() {
             onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
           />
           <PasswordInput
-            label="Gallery Password"
-            minLength={12}
+            label="Gallery PIN or Password"
+            minLength={4}
             maxLength={128}
             autoComplete="new-password"
-            description="Use at least 12 characters. Share privately with your client."
-            placeholder="Choose a password"
+            description="Use at least 4 characters; a four-digit PIN is accepted. Share privately with your client."
+            placeholder="Choose a PIN or password"
             required
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}

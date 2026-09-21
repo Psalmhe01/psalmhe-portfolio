@@ -27,7 +27,9 @@ test("password rotation and fresh IVs change encrypted shares", async () => {
   const rotated=await encryptGallery(g,await newGalleryKey("second long password"));
   await assert.rejects(decryptGallery("sample","first long password",rotated));
   assert.equal((await decryptGallery("sample","second long password",rotated)).name,"Session");
-  await assert.rejects(newGalleryKey("short"));
+  await assert.rejects(newGalleryKey("123"));
+  const pinEnvelope=await encryptGallery(g,await newGalleryKey("0123"));
+  assert.equal((await decryptGallery("sample","0123",pinEnvelope)).name,"Session");
 });
 test("Chicago appointment times cover daylight saving transitions and valid calendars", () => {
   assert.equal(sessionDate("2027-03-13","09:00").toISOString(),"2027-03-13T15:00:00.000Z");

@@ -21,7 +21,7 @@ async function derive(password, salt) {
     material, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
 }
 export async function newGalleryKey(password) {
-  if (typeof password !== "string" || password.length < 12 || password.length > 128) throw Error("Use a long, unique password of 12–128 characters.");
+  if (typeof password !== "string" || password.length < 4 || password.length > 128) throw Error("Use a PIN or password of 4–128 characters.");
   const salt = encode(crypto.getRandomValues(new Uint8Array(16)));
   const key = await derive(password, salt);
   return { salt, key: encode(await crypto.subtle.exportKey("raw", key)) };
