@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import categories from "../../Files/PortImages.jsx";
 import "../../Style/ProjectPage.css";
 import { useParams, useNavigate } from "react-router-dom";
@@ -7,22 +7,24 @@ import {
   Title,
   Text,
   Image,
-  Group,
-  Modal,
   UnstyledButton,
 } from "@mantine/core";
 import {
   IconChevronLeft,
   IconChevronRight,
-  IconX,
-  IconDownload,
+  IconArrowsMaximize,
 } from "@tabler/icons-react";
+
+import ProjectLightbox from "./ProjectLightbox.jsx";
 
 function ProjectPage() {
   const { category } = useParams();
   const navigate = useNavigate();
   const [dynamicImages, setDynamicImages] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(null);
 
   const found = categories.find((item) => {
     if (!item || !item.title || !category) return false;
@@ -30,73 +32,38 @@ function ProjectPage() {
   });
 
   useEffect(() => {
-    // If the category has a tag, fetch images from Cloudinary dynamically
-    if (found?.tag) {
-      setLoading(true);
-      const cloudName = "dwzx3jib2";
-      fetch(
-        `https://res.cloudinary.com/${cloudName}/image/list/${found.tag}.json`,
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          const urls = data.resources.map(
-            (res) =>
-              `https://res.cloudinary.com/${cloudName}/image/upload/v${res.version}/${res.public_id}.${res.format}`,
-          );
-          setDynamicImages(urls);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch images from Cloudinary", err);
-          setLoading(false);
-        });
-    } else {
-      setDynamicImages(found?.image || []);
-    }
-  }, [category, found]);
-
-  const [currentIndex, setCurrentIndex] = useState(null);
-  const lastFocusedRef = useRef(null);
-
-  const openLightbox = (index) => {
-    lastFocusedRef.current = document.activeElement;
-    setCurrentIndex(index);
-  };
-
-  const closeLightbox = () => {
+    const controller = new AbortController();
     setCurrentIndex(null);
-    try {
-      if (lastFocusedRef.current && lastFocusedRef.current.focus) {
-        lastFocusedRef.current.focus();
-      }
-    } catch (e) {
-      // ignore
+    setDynamicImages([]);
+    setLoadError(false);
+    if (!found?.tag) {
+      setDynamicImages(found?.image || []);
+      setLoading(false);
+      return () => controller.abort();
     }
-  };
 
-  const lightboxSrc =
-    dynamicImages.length > 0 && currentIndex !== null
-      ? dynamicImages[currentIndex]
-      : "";
-
-  const prevImage = useCallback(() => {
-    setCurrentIndex((idx) => (idx === 0 ? dynamicImages.length - 1 : idx - 1));
-  }, [dynamicImages.length]);
-
-  const nextImage = useCallback(() => {
-    setCurrentIndex((idx) => (idx === dynamicImages.length - 1 ? 0 : idx + 1));
-  }, [dynamicImages.length]);
-
-  useEffect(() => {
-    if (currentIndex === null) return;
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") closeLightbox();
-      if (e.key === "ArrowLeft") prevImage();
-      if (e.key === "ArrowRight") nextImage();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [currentIndex, closeLightbox, prevImage, nextImage]);
+    setLoading(true);
+    const cloudName = "dwzx3jib2";
+    fetch(`https://res.cloudinary.com/${cloudName}/image/list/${found.tag}.json`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to load collection");
+        return response.json();
+      })
+      .then((data) => {
+        if (!Array.isArray(data.resources)) throw new Error("Invalid collection response");
+        const urls = data.resources.map((resource) =>
+          `https://res.cloudinary.com/${cloudName}/image/upload/v${resource.version}/${resource.public_id}.${resource.format}`,
+        );
+        if (!controller.signal.aborted) setDynamicImages(urls);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLoadError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [found, retryCount]);
 
   if (!found) {
     return (
@@ -108,8 +75,8 @@ function ProjectPage() {
 
   if (loading) {
     return (
-      <Box py="xl" ta="center">
-        <Text>Loading images...</Text>
+      <Box py={100} ta="center" role="status">
+        <Text>Loading collection…</Text>
       </Box>
     );
   }
@@ -133,23 +100,38 @@ function ProjectPage() {
 
   return (
     <Box className="page-container">
-      <Image src={cover} alt={`${projectName} cover`} component="img" />
+      {cover && <Image src={cover} alt={`${projectName} cover`} component="img" />}
       <Box className="name-descript">
-        <Title order={1}>{projectName}</Title>
+        <div>
+          <span className="project-eyebrow">Selected works / {String(currentProjectIndex + 1).padStart(2, "0")}</span>
+          <Title order={1}>{projectName}</Title>
+        </div>
         <Text component="p">{descript}</Text>
       </Box>
-      <Box className="page-images">
-        {dynamicImages.map((item, i) => (
-          <Image
-            key={i}
-            src={item}
-            alt={`${projectName} ${i + 1}`}
-            className="page-image-item"
-            component="img"
-            onClick={() => openLightbox(i)}
-          />
-        ))}
-      </Box>
+      <div className="project-gallery-heading">
+        <span>{dynamicImages.length} {dynamicImages.length === 1 ? "photograph" : "photographs"}</span>
+        <span>Select a photograph to explore</span>
+      </div>
+      {loadError ? (
+        <Box py="xl" ta="center" role="status">
+          <Text>We couldn’t load this collection.</Text>
+          <UnstyledButton className="project-retry" onClick={() => setRetryCount((count) => count + 1)}>Try again</UnstyledButton>
+        </Box>
+      ) : dynamicImages.length === 0 ? (
+        <Box py="xl" ta="center"><Text>Photographs will be added to this collection soon.</Text></Box>
+      ) : (
+        <Box className="page-images">
+          {dynamicImages.map((item, i) => (
+            <button key={item} type="button" className="page-image-item" onClick={() => setCurrentIndex(i)} aria-label={`View ${projectName}, photograph ${i + 1}`}>
+              <img src={item} alt={`${projectName} ${i + 1}`} loading="lazy" decoding="async" />
+              <span className="page-image-caption" aria-hidden="true">
+                <span>{String(i + 1).padStart(2, "0")} / {projectName}</span>
+                <IconArrowsMaximize size={18} />
+              </span>
+            </button>
+          ))}
+        </Box>
+      )}
 
       <Box className="page-ref">
         {/* Previous Project Button */}
@@ -187,67 +169,13 @@ function ProjectPage() {
         </UnstyledButton>
       </Box>
 
-      <Modal
-        opened={currentIndex !== null}
-        onClose={closeLightbox}
-        centered
-        withCloseButton={false}
-        fullScreen // Use fullScreen to ensure it covers the entire viewport
-        zIndex={2000}
-        styles={{
-          // Ensure Mantine's internal content and body have no padding/background
-          content: {
-            background: "transparent",
-            boxShadow: "none",
-            padding: 0,
-            alignContent: "center",
-          },
-          body: {
-            padding: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }, // Center the lightbox-content
-        }}
-        overlayProps={{ backgroundOpacity: 0.8, color: "#000" }}
-      >
-        <Box className="lightbox-content">
-          <button
-            className="lightbox-close"
-            onClick={closeLightbox}
-            aria-label="Close"
-          >
-            <IconX size={24} />
-          </button>
-
-          <a
-            href={lightboxSrc.replace("/upload/", "/upload/fl_attachment/")}
-            download={`${projectName}-${currentIndex + 1}.jpg`}
-            className="lightbox-download"
-            aria-label="Download"
-          >
-            <IconDownload size={24} />
-          </a>
-
-          <button
-            className="lightbox-prev"
-            onClick={prevImage}
-            aria-label="Previous"
-          >
-            <IconChevronLeft size={32} />
-          </button>
-
-          <img src={lightboxSrc} alt={`Enlarged ${projectName}`} />
-
-          <button
-            className="lightbox-next"
-            onClick={nextImage}
-            aria-label="Next"
-          >
-            <IconChevronRight size={32} />
-          </button>
-        </Box>
-      </Modal>
+      <ProjectLightbox
+        images={dynamicImages}
+        index={currentIndex}
+        project={found}
+        onClose={() => setCurrentIndex(null)}
+        onSelect={setCurrentIndex}
+      />
     </Box>
   );
 }

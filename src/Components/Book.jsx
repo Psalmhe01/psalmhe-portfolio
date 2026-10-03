@@ -9,6 +9,7 @@ import { sendCancellationEmails } from "./Admin/sendCancellationEmails";
 import { createCancellationToken, cancelWithToken } from "../bookingAccess";
 import { createBooking } from "../createBooking";
 import { BOOKING_TIME_ZONE, bookingLocalTime } from "../bookingTime";
+import { TIME_SLOTS } from "../bookingSchedule";
 import { db } from "../firebase.js";
 import {
   Box,
@@ -28,19 +29,6 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import "../Style/Book.css";
 
-const TIME_SLOTS = [
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-  "18:00",
-];
-
 function Book() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -53,7 +41,7 @@ function Book() {
 
   const [bookingDate, setBookingDate] = useState(today);
   const [bookingTime, setBookingTime] = useState("");
-  const [bookedSlots, setBookedSlots] = useState([]);
+  const [unavailableSlots, setUnavailableSlots] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [submittedBooking, setSubmittedBooking] = useState(null);
@@ -68,14 +56,14 @@ function Book() {
   const [availabilityError, setAvailabilityError] = useState(false);
 
   useEffect(() => {
-    setBookedSlots([]);
+    setUnavailableSlots([]);
     setAvailabilityLoading(true);
     setAvailabilityError(false);
     if (!bookingDate) return;
     return onSnapshot(
       query(collection(db, "availability"), where("date", "==", bookingDate)),
       (snapshot) => {
-        setBookedSlots(snapshot.docs.map((entry) => entry.id.split(" ")[1]));
+        setUnavailableSlots(snapshot.docs.map((entry) => entry.id.split(" ")[1]));
         setAvailabilityLoading(false);
       },
       () => {
@@ -86,8 +74,8 @@ function Book() {
   }, [bookingDate]);
 
   const availableTimeSlots = useMemo(() => {
-    return TIME_SLOTS.filter((slot) => !bookedSlots.includes(slot) && `${bookingDate} ${slot}` > localNow);
-  }, [bookingDate, bookedSlots, localNow]);
+    return TIME_SLOTS.filter((slot) => !unavailableSlots.includes(slot) && `${bookingDate} ${slot}` > localNow);
+  }, [bookingDate, unavailableSlots, localNow]);
 
   useEffect(() => {
     if (isSubmitting || attempt.current) return;
@@ -181,7 +169,7 @@ function Book() {
       if (!["internal", "unavailable", "deadline-exceeded", "unknown"].includes(error?.code)) attempt.current = null;
       if (error?.code === "already-exists") {
         setStatusMessage(
-          "That date and time is already booked. Please choose another slot.",
+          "That date and time is no longer available. Please choose another slot.",
         );
       } else if (["invalid-argument", "resource-exhausted", "failed-precondition"].includes(error?.code)) {
         setStatusMessage(error.message);
@@ -232,7 +220,7 @@ function Book() {
             <Title order={1}>Book Your Photography Session</Title>
             <Text size="lg" c="dimmed" maw={700}>
               Reserve a date and time directly on the site. Your request is
-              checked against existing appointments before it is saved, so
+              checked against appointments and the photographer’s availability before it is saved, so
               duplicate bookings are prevented.
             </Text>
 

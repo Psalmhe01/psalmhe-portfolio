@@ -1,6 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Public availability/{YYYY-MM-DD HH:mm} contains either:
+    //   booked: true, date: YYYY-MM-DD (created atomically with a booking), or
+    //   blocked: true, date: YYYY-MM-DD, time: 09:00-18:00, startsAt: timestamp.
+    // Blocks contain no private reasons; only the verified admin can create/delete them.
+    // Availability updates are denied: records cannot change between booked and blocked.
     // Spark plan: atomic public reservations, private admin records, encrypted gallery shares.
     function isAdmin() {
       return request.auth != null && request.auth.token.email == 'psalmhe@gmail.com' &&
@@ -22,6 +27,30 @@ service cloud.firestore {
       let daylight = day >= march + duration.value(7 + marchSunday, 'd') &&
         day < november + duration.value(novemberSunday, 'd');
       return day + duration.value(int(d.bookingTime.split(':')[0]) + (daylight ? 5 : 6), 'h');
+    }
+
+    function validBlockedSlot(slotKey) {
+      let d = request.resource.data;
+      let bookingPath = /databases/$(database)/documents/bookings/$(slotKey);
+      return d.keys().hasAll(['blocked','date','time','startsAt']) &&
+        d.keys().hasOnly(['blocked','date','time','startsAt']) && d.blocked == true &&
+        d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        d.time is string && d.time.matches('^(09|1[0-8]):00$') &&
+        slotKey == d.date + ' ' + d.time && d.startsAt is timestamp &&
+        d.startsAt == scheduledTime({'bookingDate':d.date,'bookingTime':d.time}) &&
+        d.startsAt > request.time && d.startsAt < request.time + duration.value(366,'d') &&
+        (!existsAfter(bookingPath) || getAfter(bookingPath).data.status == 'denied');
+    }
+    function validBookedSlot(slotKey) {
+      let d = request.resource.data;
+      let booking = getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data;
+      return d.keys().hasAll(['booked','date']) && d.keys().hasOnly(['booked','date']) &&
+        d.booked == true && booking.createdAt == request.time && booking.status == 'pending' &&
+        booking.bookingDate == d.date;
+    }
+    function slotReleased(slotKey) {
+      let availabilityPath = /databases/$(database)/documents/availability/$(slotKey);
+      return !existsAfter(availabilityPath) || getAfter(availabilityPath).data.get('blocked', false) == true;
     }
 
     function validNewBooking(slotKey) {
@@ -65,7 +94,7 @@ service cloud.firestore {
     function adminDeletedTogether(slotKey) {
       let booking = get(/databases/$(database)/documents/bookings/$(slotKey)).data;
       return isAdmin() && !existsAfter(/databases/$(database)/documents/bookings/$(slotKey)) &&
-        !existsAfter(/databases/$(database)/documents/availability/$(slotKey)) &&
+        slotReleased(slotKey) &&
         (!('cancellationToken' in booking) || !existsAfter(/databases/$(database)/documents/bookingCancellations/$(booking.cancellationToken)));
     }
     function validCancellation(token) {
@@ -84,7 +113,7 @@ service cloud.firestore {
         ((resource.data.status == 'pending' && d.status in ['pending','confirmed','denied']) || d.status == resource.data.status) &&
         (!('cancellationToken' in resource.data) || d.cancellationToken == resource.data.cancellationToken) &&
         (d.status == 'denied' ?
-          (!existsAfter(/databases/$(database)/documents/availability/$(slotKey)) &&
+          (slotReleased(slotKey) &&
             (!('cancellationToken' in d) || !existsAfter(/databases/$(database)/documents/bookingCancellations/$(d.cancellationToken)))) :
           (tokenValid(d.cancellationToken) &&
             getAfter(/databases/$(database)/documents/availability/$(slotKey)).data.date == d.bookingDate &&
@@ -113,11 +142,10 @@ service cloud.firestore {
     }
     match /availability/{slotKey} {
       allow get, list: if true;
-      allow create: if request.resource.data.keys().hasOnly(['booked','date']) && request.resource.data.booked == true &&
-        getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.createdAt == request.time &&
-        getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.status == 'pending' &&
-        getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.bookingDate == request.resource.data.date;
-      allow delete: if cancelledTogether(slotKey) || (isAdmin() &&
+      allow create: if (isAdmin() && validBlockedSlot(slotKey)) || validBookedSlot(slotKey);
+      allow update: if false;
+      allow delete: if (isAdmin() && resource.data.get('blocked', false) == true) ||
+        cancelledTogether(slotKey) || (isAdmin() &&
         (!existsAfter(/databases/$(database)/documents/bookings/$(slotKey)) ||
           getAfter(/databases/$(database)/documents/bookings/$(slotKey)).data.status == 'denied'));
     }

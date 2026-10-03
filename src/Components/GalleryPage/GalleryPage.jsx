@@ -1,7 +1,7 @@
 // src/Components/GalleryPage/GalleryPage.jsx
 
 import { isAdminUser } from "../../adminAccess";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useGallery } from "../../Hooks/useGallery.js";
 import {
@@ -14,14 +14,10 @@ import {
   Button,
   Stack,
   Box,
-  Modal,
-  Image,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { modals } from "@mantine/modals";
 import { useAuth } from "../../Context/AuthContext.jsx";
-import { Group } from "@mantine/core";
 
 import {
   loadGoogleFont,
@@ -30,6 +26,11 @@ import {
 } from "./utils";
 import GalleryCover from "./components/GalleryCover";
 import PhotoGrid from "./components/PhotoGrid";
+import GalleryLightbox from "./components/GalleryLightbox";
+import GalleryToolbar from "./components/GalleryToolbar";
+import "../../Style/ClientGallery.css";
+
+const EMPTY_PHOTOS = [];
 
 export default function GalleryPage({ isAdmin = false }) {
   const { slug } = useParams();
@@ -40,12 +41,54 @@ export default function GalleryPage({ isAdmin = false }) {
   const [passwordInput, setPasswordInput] = useState("");
   const [wrongPassword, setWrongPassword] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [lightboxPhoto, setLightboxPhoto] = useState(null);
-  const [lightboxIndex, setLightboxIndex] = useState(null);
-  const [lightboxOpened, { open: openLightbox, close: closeLightbox }] =
-    useDisclosure(false);
-  const [downloadingAll, setDownloadingAll] = useState(false);
-  const [touchStart, setTouchStart] = useState(null);
+  const [lightboxPhotoId, setLightboxPhotoId] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [downloadingBatch, setDownloadingBatch] = useState(null);
+  const [downloadingPhoto, setDownloadingPhoto] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(null);
+  const downloadLockRef = useRef(false);
+  const photos = gallery?.photos || EMPTY_PHOTOS;
+  const selectedPhotos = useMemo(() => photos.filter((photo) => selectedIds.has(photo.publicId)), [photos, selectedIds]);
+  const lightboxIndex = lightboxPhotoId === null ? -1 : photos.findIndex((photo) => photo.publicId === lightboxPhotoId);
+  const downloadBusy = downloadingBatch !== null || downloadingPhoto !== null;
+  const progressLabel = downloadProgress?.phase === "packaging"
+    ? "Creating ZIP…"
+    : `Preparing ${downloadProgress?.completed || 0} / ${downloadProgress?.total || 0}`;
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+    setLightboxPhotoId(null);
+  }, [slug]);
+
+  useEffect(() => {
+    const availableIds = new Set(photos.map((photo) => photo.publicId));
+    setSelectedIds((previous) => {
+      const remaining = new Set([...previous].filter((id) => availableIds.has(id)));
+      return remaining.size === previous.size ? previous : remaining;
+    });
+  }, [photos]);
+
+  const startSelecting = () => {
+    if (!downloadLockRef.current) setSelectionMode(true);
+  };
+
+  const finishSelecting = () => {
+    if (downloadLockRef.current) return;
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelection = (id) => {
+    if (!selectionMode || downloadLockRef.current) return;
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (gallery?.titleFont) loadGoogleFont(gallery.titleFont);
@@ -68,23 +111,38 @@ export default function GalleryPage({ isAdmin = false }) {
   };
 
   const handleDownload = useCallback(async (photo) => {
-    await downloadSinglePhoto(photo);
+    if (!photo || downloadLockRef.current) return;
+    downloadLockRef.current = true;
+    setDownloadingPhoto(photo.publicId);
+    try {
+      await downloadSinglePhoto(photo);
+    } finally {
+      downloadLockRef.current = false;
+      setDownloadingPhoto(null);
+    }
   }, []);
 
-  const handleDownloadAll = useCallback(async () => {
-    setDownloadingAll(true);
+  const handleDownloadBatch = async (type) => {
+    if (downloadLockRef.current) return;
+    const chosenPhotos = type === "selected" ? selectedPhotos : photos;
+    if (!chosenPhotos.length) return;
+    downloadLockRef.current = true;
+    setDownloadingBatch(type);
+    setDownloadProgress({ phase: "fetching", completed: 0, total: chosenPhotos.length });
     try {
-      await downloadAllPhotosAsZip(gallery.name, gallery.photos);
+      await downloadAllPhotosAsZip(gallery.name, chosenPhotos, {
+        selected: type === "selected",
+        onProgress: setDownloadProgress,
+      });
     } finally {
-      setDownloadingAll(false);
+      downloadLockRef.current = false;
+      setDownloadingBatch(null);
+      setDownloadProgress(null);
     }
-  }, [gallery]);
-
-  const handleOpenLightbox = (photo, index) => {
-    setLightboxPhoto(photo);
-    setLightboxIndex(index);
-    openLightbox();
   };
+
+  const handleOpenLightbox = (photo) => setLightboxPhotoId(photo.publicId);
+  const closeLightbox = () => setLightboxPhotoId(null);
 
   const handleDeletePhoto = (photoPublicId, photoFilename) => {
     modals.openConfirmModal({
@@ -123,50 +181,6 @@ export default function GalleryPage({ isAdmin = false }) {
         color: "red",
       });
     }
-  };
-
-  const photos = gallery?.photos || [];
-
-  const prevPhoto = useCallback(() => {
-    setLightboxIndex((prev) => {
-      if (prev !== null && prev > 0) {
-        const i = prev - 1;
-        setLightboxPhoto(photos[i]);
-        return i;
-      }
-      return prev;
-    });
-  }, [photos]);
-
-  const nextPhoto = useCallback(() => {
-    setLightboxIndex((prev) => {
-      if (prev !== null && prev < photos.length - 1) {
-        const i = prev + 1;
-        setLightboxPhoto(photos[i]);
-        return i;
-      }
-      return prev;
-    });
-  }, [photos]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!lightboxOpened) return;
-      if (e.key === "ArrowLeft") prevPhoto();
-      if (e.key === "ArrowRight") nextPhoto();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxOpened, prevPhoto, nextPhoto]);
-
-  const handleTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
-  const handleTouchEnd = (e) => {
-    if (touchStart === null) return;
-    const touchEnd = e.changedTouches[0].clientX;
-    const distance = touchStart - touchEnd;
-    if (distance > 50) nextPhoto();
-    else if (distance < -50) prevPhoto();
-    setTouchStart(null);
   };
 
   // ── Loading / Error ────────────────────────────────
@@ -256,22 +270,27 @@ export default function GalleryPage({ isAdmin = false }) {
       : "#0d0d0d";
 
   return (
-    <Box style={{ background: bg, minHeight: "100vh" }}>
+    <Box className="client-gallery" style={{ background: bg, minHeight: "100vh", "--gallery-canvas": bg, "--gallery-ink": bg === "#0d0d0d" ? "#f1eee7" : "#34302a", "--gallery-muted": bg === "#0d0d0d" ? "#aaa69c" : "#70695f", color: "var(--gallery-ink)" }}>
       {isAdmin && gallery.needsMigration && <Text c="red" ta="center" p="md">Set a new password from Manage Galleries to enable client access.</Text>}
       {/* Cover */}
       <GalleryCover gallery={gallery} isAdmin={isAdmin} />
 
-      {/* Photo count */}
-      <Box ta="center" py="sm">
-        <Text
-          size="xs"
-          c="dimmed"
-          tt="uppercase"
-          style={{ letterSpacing: "0.1em" }}
-        >
-          {photos.length} photos
-        </Text>
-      </Box>
+      {photos.length > 0 && (
+        <GalleryToolbar
+          selectionMode={selectionMode}
+          onStartSelecting={startSelecting}
+          onFinishSelecting={finishSelecting}
+          total={photos.length}
+          selectedCount={selectedPhotos.length}
+          onSelectAll={() => setSelectedIds(new Set(photos.map((photo) => photo.publicId)))}
+          onClear={() => setSelectedIds(new Set())}
+          onDownloadSelected={() => handleDownloadBatch("selected")}
+          onDownloadAll={() => handleDownloadBatch("all")}
+          downloadBusy={downloadBusy}
+          batchType={downloadingBatch}
+          progressLabel={progressLabel}
+        />
+      )}
 
       {/* Grid */}
       <Box px={{ base: "sm", sm: "xl" }} pb={80}>
@@ -289,79 +308,37 @@ export default function GalleryPage({ isAdmin = false }) {
             gridCols={gallery.gridCols || 3}
             hoverEffect={gallery.hoverEffect || "zoom"}
             isAdmin={isAdmin}
-            isDownloadingAll={downloadingAll}
             onOpenLightbox={handleOpenLightbox}
             onDownload={handleDownload}
-            onDownloadAll={handleDownloadAll}
             onDelete={handleDeletePhoto}
             onSetCover={handleSetCover}
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleSelection={toggleSelection}
+            selectionDisabled={downloadBusy}
+            downloadBusy={downloadBusy}
           />
         )}
       </Box>
 
-      {/* Lightbox */}
-      <Modal
-        opened={lightboxOpened}
+      <GalleryLightbox
+        gallery={gallery}
+        photos={photos}
+        index={lightboxIndex >= 0 ? lightboxIndex : null}
         onClose={closeLightbox}
-        size="auto"
-        centered
-        withCloseButton
-        padding="md"
-        radius={0}
-        styles={{
-          content: { background: "rgba(0,0,0,0.95)", maxWidth: "90vw" },
-          header: { background: "transparent" },
-          close: { color: "var(--mantine-color-gray-5)" },
-        }}
-      >
-        {lightboxPhoto && (
-          <Stack
-            align="center"
-            gap="md"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            <Image
-              src={lightboxPhoto.url}
-              alt=""
-              mah="72vh"
-              fit="contain"
-              radius={0}
-            />
-            <Group gap="sm">
-              <Button
-                variant="outline"
-                color="gray"
-                radius={0}
-                size="sm"
-                disabled={lightboxIndex === 0}
-                onClick={prevPhoto}
-              >
-                ‹ Prev
-              </Button>
-              <Button
-                color="yellow.6"
-                c="dark.9"
-                radius={0}
-                size="sm"
-                onClick={() => handleDownload(lightboxPhoto)}
-              >
-                ↓ Download
-              </Button>
-              <Button
-                variant="outline"
-                color="gray"
-                radius={0}
-                size="sm"
-                disabled={lightboxIndex === photos.length - 1}
-                onClick={nextPhoto}
-              >
-                Next ›
-              </Button>
-            </Group>
-          </Stack>
-        )}
-      </Modal>
+        onNavigate={(index) => setLightboxPhotoId(photos[index].publicId)}
+        onDownload={handleDownload}
+        selectionMode={selectionMode}
+        onStartSelecting={startSelecting}
+        onFinishSelecting={finishSelecting}
+        selectedIds={selectedIds}
+        selectedCount={selectedPhotos.length}
+        onToggleSelection={toggleSelection}
+        onDownloadSelected={() => handleDownloadBatch("selected")}
+        downloadBusy={downloadBusy}
+        batchDownloading={downloadingBatch !== null}
+        progressLabel={progressLabel}
+      />
     </Box>
   );
 }

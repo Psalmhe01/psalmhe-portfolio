@@ -23,7 +23,7 @@ export async function reserveBooking(db, input) {
       throw fail("invalid-argument", "Choose a future appointment within one year.");
     }
     const availabilityRef = doc(db, "availability", slotKey);
-    if ((await tx.get(availabilityRef)).exists()) throw fail("already-exists", "That time is already booked.");
+    if ((await tx.get(availabilityRef)).exists()) throw fail("already-exists", "That time is no longer available.");
     tx.set(doc(db, "bookings", slotKey), { ...result, startsAt: Timestamp.fromDate(startsAt), status: "pending", createdAt: serverTimestamp() });
     tx.set(availabilityRef, { booked: true, date: payload.bookingDate });
     tx.set(doc(db, "bookingCancellations", requestId), cancellationDetails(result));

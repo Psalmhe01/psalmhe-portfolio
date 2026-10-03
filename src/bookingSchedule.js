@@ -1,3 +1,5 @@
+export const TIME_SLOTS = Array.from({ length: 10 }, (_, index) => `${String(index + 9).padStart(2, "0")}:00`);
+
 export const BOOKING_TIME_ZONE = "America/Chicago";
 export function sessionDate(date, time) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^(09|1[0-8]):00$/.test(time)) throw Error("Choose a valid date and time.");

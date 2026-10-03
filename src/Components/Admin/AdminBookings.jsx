@@ -34,6 +34,7 @@ import {
   SimpleGrid,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import AvailabilityPanel from "./components/AvailabilityPanel";
 
 /**
  * AdminBookings Component
@@ -102,7 +103,7 @@ function AdminBookings() {
         } else {
           if (current.status !== "denied") transaction.set(doc(collection(db, "bookingHistory")), { ...current, status: "denied" });
           transaction.update(ref, { status: newStatus });
-          transaction.delete(doc(db, "availability", current.slotKey));
+          if (current.status !== "denied") transaction.delete(doc(db, "availability", current.slotKey));
           if (current.cancellationToken) transaction.delete(doc(db, "bookingCancellations", current.cancellationToken));
         }
         return { ...current, cancellationToken: token };
@@ -219,6 +220,8 @@ function AdminBookings() {
               Refresh List
             </Button>
           </Group>
+
+          <AvailabilityPanel />
 
           {error && (
             <Alert color="red" title="Access Error">

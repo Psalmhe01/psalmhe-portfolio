@@ -2,8 +2,11 @@ import { after, before, beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { initializeTestEnvironment, assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
-import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, Timestamp } from "firebase/firestore";
+import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, writeBatch, serverTimestamp, Timestamp } from "firebase/firestore";
 
+import { blockBookingSlots, unblockBookingSlot } from "../src/bookingAvailability.js";
+import { reserveBooking } from "../src/bookingReservations.js";
+import { TIME_SLOTS } from "../src/bookingSchedule.js";
 import { sessionDate } from "../src/bookingSchedule.js";
 
 let env;
@@ -265,4 +268,97 @@ test("rules validate Chicago daylight-saving timestamps across the next year", a
     await assertSucceeds(reserveBooking(client,{firstName:"Test",lastName:"Client",email:"client@example.com",phone:"1234567890",
       occasion:"",notes:"",bookingDate:day,bookingTime:"18:00",requestId:id}));
   }
+});
+
+const blockedSlot = (time = "09:00") => ({ blocked: true, date: futureDay, time, startsAt: Timestamp.fromDate(sessionDate(futureDay, time)) });
+const bookingInput = (requestId = token) => ({ firstName:"Test", lastName:"Client", email:"client@example.com", phone:"1234567890", occasion:"Portrait", notes:"", bookingDate:futureDay, bookingTime:"09:00", requestId });
+
+test("admin blocks are visible in client availability and reject stale booking requests", async () => {
+  await assertSucceeds(blockBookingSlots(admin, futureDay, ["09:00", "10:00"]));
+  const snapshot = await assertSucceeds(getDocs(query(collection(client, "availability"), where("date", "==", futureDay))));
+  assert.equal(snapshot.size, 2);
+  assert.equal(snapshot.docs.every((entry) => entry.data().blocked === true), true);
+  await assertFails(reservation(client));
+  await assert.rejects(reserveBooking(client, bookingInput()), { code: "already-exists" });
+  await assertSucceeds(unblockBookingSlot(admin, futureDay, "09:00"));
+  await assertSucceeds(reserveBooking(client, bookingInput()));
+});
+
+test("anonymous, ordinary, and unverified-admin accounts cannot manage blocks", async () => {
+  const accounts = [client,
+    env.authenticatedContext("ordinary", { email:"other@example.com", email_verified:true }).firestore(),
+    env.authenticatedContext("unverified", { email:"psalmhe@gmail.com", email_verified:false }).firestore(),
+  ];
+  for (const db of accounts) await assertFails(setDoc(doc(db, "availability", slot), blockedSlot()));
+  await setDoc(doc(admin, "availability", slot), blockedSlot());
+  for (const db of accounts) {
+    await assertFails(deleteDoc(doc(db, "availability", slot)));
+    await assertFails(updateDoc(doc(db, "availability", slot), { blocked:false }));
+  }
+  await assertFails(updateDoc(doc(admin, "availability", slot), { time:"10:00" }));
+  await assertFails(updateDoc(doc(admin, "availability", slot), { notes:"private" }));
+});
+
+test("blocks validate exact schema, Chicago timestamp, calendar date, and document identity", async () => {
+  const { startsAt, ...noTimestamp } = blockedSlot();
+  for (const value of [
+    noTimestamp,
+    { ...blockedSlot(), blocked:false },
+    { ...blockedSlot(), blocked:"true" },
+    { ...blockedSlot(), notes:"private reason" },
+    { ...blockedSlot(), booked:true },
+    { ...blockedSlot(), date:"2030-13-40" },
+    { ...blockedSlot(), date:"2027-02-30" },
+    { ...blockedSlot(), time:"09:30" },
+    { ...blockedSlot(), time:"10:00" },
+    { ...blockedSlot(), startsAt:"not a timestamp" },
+    { ...blockedSlot(), startsAt:Timestamp.fromMillis(startsAt.toMillis() + 3600000) },
+    { ...blockedSlot(), startsAt:Timestamp.fromMillis(Date.now() - 60000) },
+  ]) await assertFails(setDoc(doc(admin, "availability", slot), value));
+  const tooFar = new Date(Date.now() + 400 * 86400000).toISOString().slice(0,10);
+  await assertFails(setDoc(doc(admin,"availability",tooFar+" 09:00"), { blocked:true,date:tooFar,time:"09:00",startsAt:Timestamp.fromDate(sessionDate(tooFar,"09:00")) }));
+  await assertSucceeds(setDoc(doc(admin, "availability", slot), blockedSlot()));
+});
+
+test("blocking all ten times in one transaction respects rule access limits", async () => {
+  assert.equal(await blockBookingSlots(admin, futureDay, TIME_SLOTS), 10);
+  assert.equal((await getDocs(query(collection(client,"availability"),where("date","==",futureDay)))).size, 10);
+  assert.equal(await blockBookingSlots(admin, futureDay, TIME_SLOTS), 0);
+});
+
+test("a booked slot cannot be blocked or unblocked, and multi-slot failures are atomic", async () => {
+  await reservation(client);
+  await assert.rejects(blockBookingSlots(admin, futureDay, ["10:00", "09:00"]), /already booked/);
+  assert.equal((await getDoc(doc(client,"availability",futureDay+" 10:00"))).exists(), false);
+  await assert.rejects(unblockBookingSlot(admin, futureDay, "09:00"), /belongs to a booking/);
+  await assertFails(setDoc(doc(admin, "availability", slot), blockedSlot()));
+  assert.equal((await getDoc(doc(client, "availability", slot))).data().booked, true);
+});
+
+test("simultaneous blocking and booking cannot both win", async () => {
+  const outcomes = await Promise.allSettled([
+    blockBookingSlots(admin, futureDay, ["09:00"]),
+    reserveBooking(client, bookingInput()),
+  ]);
+  assert.equal(outcomes.filter((outcome) => outcome.status === "fulfilled").length, 1);
+  const availability = (await getDoc(doc(client,"availability",slot))).data();
+  const saved = await getDoc(doc(admin,"bookings",slot));
+  assert.equal(saved.exists(), availability.booked === true);
+  assert.equal(availability.blocked === true, !saved.exists());
+});
+
+test("denied booking cleanup preserves a later admin block and old cancellation links cannot remove it", async () => {
+  await reservation(client);
+  const deny = writeBatch(admin);
+  deny.update(doc(admin,"bookings",slot), { status:"denied" });
+  deny.delete(doc(admin,"availability",slot));
+  deny.delete(doc(admin,"bookingCancellations",token));
+  await deny.commit();
+  await blockBookingSlots(admin, futureDay, ["09:00"]);
+  await assertSucceeds(updateDoc(doc(admin,"bookings",slot), { status:"denied" }));
+  await assertFails(cancel(client));
+  await assertSucceeds(deleteDoc(doc(admin,"bookings",slot)));
+  assert.equal((await getDoc(doc(client,"availability",slot))).data().blocked, true);
+  await unblockBookingSlot(admin,futureDay,"09:00");
+  await assertSucceeds(reserveBooking(client,bookingInput(otherToken)));
 });

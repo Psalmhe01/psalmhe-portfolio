@@ -32,7 +32,7 @@ export default function AdminDashboard() {
     },
     {
       title: "Booking Requests",
-      description: "View, confirm or deny incoming photography sessions",
+      description: "Manage booking requests and block unavailable times",
       icon: IconCalendar,
       color: "teal",
       path: "/admin/bookings",

@@ -44,3 +44,6 @@ shh-key.pub
 # Build verification output
 /.validation-dist/
 /functions/*.local.log
+
+# Local reference projects
+/src/Refs/

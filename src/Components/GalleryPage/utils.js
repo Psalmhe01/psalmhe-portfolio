@@ -1,4 +1,5 @@
 import { notifications } from "@mantine/notifications";
+import { buildPhotoArchive } from "./photoArchive.mjs";
 
 /**
  * Load Google Font into the document
@@ -32,70 +33,37 @@ export async function downloadSinglePhoto(photo) {
   }
 }
 
-/**
- * Download all photos as a zip file
- */
-export async function downloadAllPhotosAsZip(galleryName, photos) {
-  if (!photos || photos.length === 0) {
-    notifications.show({
-      message: "No photos to download.",
-      color: "yellow",
-    });
-    return;
-  }
-
-  const { default: JSZip } = await import("jszip");
-  const zip = new JSZip();
-  let successCount = 0;
-  let failCount = 0;
-
-  // Create a folder in the zip
-  const folder = zip.folder(galleryName || "Gallery");
-
-  for (let i = 0; i < photos.length; i++) {
-    try {
-      const photo = photos[i];
-      const response = await fetch(photo.downloadUrl || photo.url);
-      if (!response.ok) throw new Error("Photo unavailable");
-      const blob = await response.blob();
-
-      // Get file extension from filename or URL
-      let filename = photo.filename || `photo-${i + 1}.jpg`;
-      // Ensure filename has extension
-      if (!filename.includes(".")) {
-        filename += ".jpg";
-      }
-
-      folder.file(`${i + 1}-${filename.replace(/[\\/]/g, "_")}`, blob);
-      successCount++;
-    } catch (err) {
-      console.error(`Failed to download photo ${i + 1}:`, err);
-      failCount++;
-    }
-  }
-
-  if (successCount === 0) {
-    notifications.show({ message: "No photos could be downloaded. Please try again.", color: "red" });
+/** Download the supplied photos as a ZIP (all photos or the chosen subset). */
+export async function downloadAllPhotosAsZip(galleryName, photos, { selected = false, onProgress } = {}) {
+  if (!photos?.length) {
+    notifications.show({ message: "No photos to download.", color: "yellow" });
     return;
   }
 
   try {
+    const { zip, successCount, failedPhotos } = await buildPhotoArchive(galleryName, photos, { onProgress });
+    if (successCount === 0) {
+      notifications.show({ message: "No photos could be downloaded. Please try again.", color: "red" });
+      return;
+    }
+
+    onProgress?.({ phase: "packaging", completed: photos.length, total: photos.length });
     const zipBlob = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(zipBlob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${galleryName || "gallery"}-photos.zip`;
+    const safeName = String(galleryName || "gallery").replace(/[\\/:*?"<>|]/g, "_");
+    link.download = `${safeName}-${selected ? "selected-" : ""}photos.zip`;
     link.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 
     notifications.show({
-      message: `Downloaded ${successCount} photos${failCount > 0 ? ` (${failCount} failed)` : ""}`,
-      color: successCount > 0 ? "green" : "red",
+      message: failedPhotos.length
+        ? `Your ZIP contains ${successCount} photos. ${failedPhotos.length} couldn’t be downloaded; please try again.`
+        : `Downloaded ${successCount} ${successCount === 1 ? "photo" : "photos"}.`,
+      color: failedPhotos.length ? "yellow" : "green",
     });
-  } catch (err) {
-    notifications.show({
-      message: "Failed to create zip file.",
-      color: "red",
-    });
+  } catch {
+    notifications.show({ message: "Failed to create the download. Please try again.", color: "red" });
   }
 }
